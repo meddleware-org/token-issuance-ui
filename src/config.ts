@@ -3,6 +3,7 @@
 // See .env.example.
 import type { TokenNetwork as Network } from '@meddleware/token-issuance-client'
 import { relayGateConfig, requireHttpsHost, type RelayGateConfig } from '@meddleware/walrus-storage-kit'
+import { withRuntimeEnv } from '@meddleware/ui'
 
 const env = (import.meta as unknown as { env?: Record<string, string | undefined> }).env ?? {}
 
@@ -95,10 +96,16 @@ export function operatorRelayHost(network: WalrusNetwork, value: string | undefi
  * through the public relay still work but tip Mysten, not the operator, so they
  * earn nothing. A user may also override this at runtime by entering a relay URL.
  */
-export const WALRUS_RELAY_HOSTS: Record<WalrusNetwork, string> = {
-  testnet: operatorRelayHost('testnet', env.VITE_WALRUS_RELAY_TESTNET),
-  mainnet: operatorRelayHost('mainnet', env.VITE_WALRUS_RELAY_MAINNET),
-}
+export const WALRUS_RELAY_HOSTS: Readonly<Record<WalrusNetwork, string>> = Object.freeze({
+  // Getters: the relay is a machine-zone endpoint that /runtime-config.json may override (ADR-0005),
+  // and this module is imported before main.ts has loaded that file.
+  get testnet() {
+    return operatorRelayHost('testnet', withRuntimeEnv(env).VITE_WALRUS_RELAY_TESTNET)
+  },
+  get mainnet() {
+    return operatorRelayHost('mainnet', withRuntimeEnv(env).VITE_WALRUS_RELAY_MAINNET)
+  },
+})
 
 /** True when an operator-owned relay (not the public fallback) is configured. */
 export function isOperatorRelayConfigured(network: WalrusNetwork): boolean {

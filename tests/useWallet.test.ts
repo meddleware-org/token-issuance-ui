@@ -68,7 +68,7 @@ describe('useWallet with real extension wallets (private-field getters)', () => 
     const { useWallet } = await import('@meddleware/wallet-adapter')
     const { connect, signPersonalMessage, wallets } = useWallet()
     await connect(wallets.value[0])
-    const res = await signPersonalMessage(new TextEncoder().encode('nft-gate:access:abc'))
+    const res = await signPersonalMessage(new TextEncoder().encode('access-gate-gateway:access:abc'))
     expect(res.signature).toBe('PMSIG')
   })
 })

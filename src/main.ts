@@ -10,7 +10,7 @@ import './templateWasm.js'
 // import it), so a dynamic import in the E2E block below could not split it out anyway.
 import { setReadClient } from './wallet.js'
 import type { SuiGrpcClient } from '@mysten/sui/grpc'
-import { useColorMode, useSeason } from '@meddleware/ui'
+import { loadRuntimeConfig, useColorMode, useSeason } from '@meddleware/ui'
 
 // Apply the colour mode before mount so there is no theme flash. Defaults to
 // `system` (follows the OS) while enabling the in-app light/dark/system control.
@@ -136,5 +136,7 @@ useSeason()
     }
   }
 
+  // Machine-zone endpoints (the Walrus relays) may come from /runtime-config.json (ADR-0005).
+  await loadRuntimeConfig()
   createApp(App).mount('#app')
 })()

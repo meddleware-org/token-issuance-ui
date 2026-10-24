@@ -1,6 +1,6 @@
 {
   "name": "@meddleware/token-issuance-ui",
-  "version": "0.0.39",
+  "version": "0.0.40",
   "type": "module",
   "license": "0BSD",
   "repository": {
@@ -51,10 +51,10 @@
   },
   "dependencies": {
     "@meddleware/design-tokens": "^0.1.10",
-    "@meddleware/token-issuance-client": "^0.0.13",
-    "@meddleware/ui": "^0.1.31",
-    "@meddleware/walrus-storage-client": "^0.0.31",
-    "@meddleware/walrus-storage-kit": "^0.1.34",
+    "@meddleware/token-issuance-client": "^0.0.14",
+    "@meddleware/ui": "^0.1.34",
+    "@meddleware/walrus-storage-client": "^0.0.32",
+    "@meddleware/walrus-storage-kit": "^0.1.35",
     "@mysten/move-bytecode-template": "~0.4.1",
     "@mysten/sui": "^2.36.0",
     "@mysten/walrus": "~1.2.35",
@@ -64,9 +64,9 @@
     "@meddleware/wallet-adapter": ">=0.0.12 <0.2.0"
   },
   "devDependencies": {
-    "@meddleware/access-gate-client": "^0.0.10",
-    "@meddleware/eslint-config": "^0.0.3",
-    "@meddleware/wallet-adapter": "^0.0.17",
+    "@meddleware/access-gate-client": "^0.0.12",
+    "@meddleware/eslint-config": "^0.0.4",
+    "@meddleware/wallet-adapter": "^0.0.18",
     "@playwright/test": "^1.64.1",
     "@types/node": "~26.6.5",
     "@vitejs/plugin-vue": "^6.0.10",
