@@ -8,7 +8,7 @@ Address: https://sui-token-issuance.meddleware.co.uk
 
 - [Overview](https://docs.meddleware.co.uk/blockchain/sui/onchain/token-issuance/overview)
 - [User guide](https://docs.meddleware.co.uk/blockchain/sui/onchain/token-issuance/user-guide)
-- [Developer guide](https://dev.meddleware.co.uk/sui/onchain/token-issuance/dev-guide)
+- [Developer guide](https://meddleware.dev/sui/onchain/token-issuance/dev-guide)
 
 ## SDK
 

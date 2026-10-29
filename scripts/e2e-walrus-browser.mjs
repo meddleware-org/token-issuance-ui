@@ -153,7 +153,7 @@ async function main() {
 
   const hosts = [...relayHosts]
   console.log('upload relay host(s):', hosts.join(', ') || '(none seen)')
-  const operatorHost = 'sui-walrus-storage-relay-testnet.meddleware.co.uk'
+  const operatorHost = 'sui-walrus-storage-relay-testnet.meddleware.dev'
   if (RELAY === 'operator' && !hosts.includes(operatorHost)) fail(`upload did not go through ${operatorHost}`)
   if (RELAY === 'public' && hosts.includes(operatorHost)) fail('upload went through the operator relay')
 
