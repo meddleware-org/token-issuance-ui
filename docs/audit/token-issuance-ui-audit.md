@@ -19,7 +19,7 @@
 **Deployed by:** `post-bootstrap/token-issuance-ui/overlays/default`; digest from `config/images.yaml`
 **Build args:** the `VITE_*` public values only (network, treasury, RPC, relay, gate id, tip ceiling, public URL) — none secret, none a test switch
 **Deployment status:** npm v0.0.36 (2026-10-18); image `quay.io/meddleware-org/token-issuance-ui` serving `sui-token-issuance.meddleware.co.uk` at 0.0.36 (`sha256:6b8f5aff…4f2d`; release tag `v0.0.36` = `581e9fd`; released, signature verified and deployed 2026-10-18, rollout succeeded; 0.0.35 `sha256:d9005ca3…` was deployed 2026-10-09; live headers re-checked 2026-10-18); embedded in dashboard 0.1.85 (`dash.meddleware.co.uk/blockchain`, "Token Issuance" tab)
-**Review date:** 2026-09-24 (first pass) · re-verified 2026-10-02 · re-verified 2026-10-09 · fix wave 2026-10-18 (0.0.36, released and deployed)
+**Review date:** 2026-09-24 (first pass) · re-verified 2026-10-02 · re-verified 2026-10-09 · fix wave 2026-10-18 (0.0.36, released and deployed); 0.0.41 re-verified 2026-10-30 (Point the developer-docs and indexer links at the machine zone (ADR-0005); current @meddleware packages)
 **Reviewer:** Internal review
 **Severity ceiling:** High — the operator fee is split inside the user's publish transaction, the app patches bytecode the user signs, its icon uploads use the paid, NFT-gated relay, and it can hold the user's GitHub token for one push. It holds no keys and no server.
 **Status:** fix wave 2026-10-18 (0.0.36, commit `0c427e8`; released and deployed 2026-10-18, signature verified, rollout succeeded)
