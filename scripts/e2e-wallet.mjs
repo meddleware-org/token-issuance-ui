@@ -89,20 +89,17 @@ export async function injectWallet(page, { keypair, client, chain }) {
 
 /**
  * Connect the injected wallet through the app's dialog, selecting `appNetwork` first when it is
- * not the testnet default.
+ * not the testnet default (the standalone app's header has a Network control; a host such as the
+ * dashboard selects its own network, so a missing control is not an error).
  */
 export async function connectWallet(page, appNetwork = 'testnet') {
-  // "Connect Wallet" standalone, "Connect wallet" in the dashboard shell; the page's connect prompt
-  // may show a second one. Each opens the same dialog.
-  await page.getByRole('button', { name: /^Connect wallet$/i }).first().click()
   if (appNetwork !== 'testnet') {
-    await page.locator('#dialog-network-select').selectOption(appNetwork)
+    const network = page.getByRole('combobox', { name: 'Network' })
+    if (await network.count()) await network.first().selectOption(appNetwork)
   }
+  // "Connect wallet" in the header and in the page's connect prompt: each opens the same dialog.
+  await page.getByRole('button', { name: /^Connect wallet$/i }).first().click()
   await page.getByRole('button', { name: new RegExp(WALLET_NAME) }).click()
-  // Connected: the standalone bar shows "<wallet> · <network>"; the dashboard shell drops the
-  // Connect button for an account control. Either signal is enough.
-  await Promise.any([
-    page.getByText(new RegExp(`${WALLET_NAME} ·`)).waitFor({ timeout: 10000 }),
-    page.getByRole('button', { name: /^Connect wallet$/i }).first().waitFor({ state: 'detached', timeout: 10000 }),
-  ])
+  // Connected: the Connect buttons give way to the account control.
+  await page.getByRole('button', { name: /^Connect wallet$/i }).first().waitFor({ state: 'detached', timeout: 10000 })
 }

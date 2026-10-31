@@ -1,461 +1,67 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
-import { useWallet } from '@meddleware/wallet-adapter'
-import { buildDeployExecutor } from '../lib/deployExecutor.js'
-import { getReadClient } from '../wallet.js'
-import { useWalrusRelay } from '../composables/useWalrusRelay.js'
-import { AccessGateCta, useAccessGate } from '@meddleware/walrus-storage-kit'
-// The flow subpath carries no wasm; it loads the Walrus client lazily when an upload starts.
-import { browserStorage, consumeStorageKey, createGatedAccess, getUploadRetry, runBlobUpload } from '@meddleware/walrus-storage-client/flow'
-import { normalizeSuiAddress } from '@mysten/sui/utils'
-import { ICON_EPOCHS } from '../lib/walrus-constants.js'
-import { ACCESS_GATE, ICON_MAX_BYTES, WALRUS_MAX_TIP_MIST, WALRUS_RPC_URLS, validateIconFile } from '../config.js'
-import type { WalrusNetwork } from '../config.js'
+// The coin's icon: a URL typed in, a file uploaded to Walrus, or a blob picked from those already stored. Whichever way, the result is a
+// URL in the form's `iconUrl`. The three sources are tabs; the panels stay mounted so each keeps its state.
+import { computed, ref } from 'vue'
+import { AppTabNav, UiTabPanel, UiTextField, type AppTab } from '@meddleware/ui'
 import type { TokenNetwork as Network } from '@meddleware/token-issuance-client'
-import { UiNotice, UiFieldHint, UiSegmentedControl } from '@meddleware/ui'
+import type { WalrusNetwork } from '../config.js'
+import IconUploadPanel from './IconUploadPanel.vue'
 import WalrusBlobBrowser from './WalrusBlobBrowser.vue'
-import walrusWasmUrl from '@mysten/walrus-wasm/web/walrus_wasm_bg.wasm?url'
 
-const props = defineProps<{
-  modelValue: string
-  network: Network
-  connected: boolean
-  error?: string
-}>()
+const props = defineProps<{ network: Network; connected: boolean; error?: string }>()
+const url = defineModel<string>({ required: true })
+const emit = defineEmits<{ (e: 'blur'): void }>()
 
-const emit = defineEmits<{
-  (e: 'update:modelValue', url: string): void
-  (e: 'blur'): void
-}>()
-
-const { account, signPersonalMessage } = useWallet()
-
-const isWalrusNetwork = computed(() => props.network !== 'localnet')
-const walrusNet: WalrusNetwork = props.network === 'mainnet' ? 'mainnet' : 'testnet'
-
-// NFT-gated relay access (inert when no gate is configured for this network). `useAccessGate`
-// throws for a gate that is not the published deployment on `walrusNet`; `ACCESS_GATE` only holds
-// configs built by `relayGateConfig` (or null). The price and payees are read from the chain.
-const accessGate = useAccessGate({ network: walrusNet, gate: ACCESS_GATE[walrusNet], getClient: () => getReadClient(walrusNet) })
-
-const {
-  selectedRelayHost,
-  availableRelays,
-  relayPending,
-  purchaseAccessAvailable,
-  estimatedCost,
-  fileSizeBytes,
-  checkOperatorRelayHealth,
-} = useWalrusRelay(walrusNet, {
-  gateConfigured: accessGate.gateConfigured,
-  hasAccess: accessGate.hasAccess,
-})
-
-const purchasing = ref(false)
-
-async function refreshAccess(): Promise<void> {
-  if (isWalrusNetwork.value && accessGate.gateConfigured && account.value) {
-    await accessGate.checkOwnership(account.value.address)
-  }
-}
-
-/** Buy relay access (mints the gate NFT to the wallet), then re-check ownership. */
-async function purchaseAccess(): Promise<void> {
-  if (!account.value) {
-    uploadError.value = 'Connect your wallet first.'
-    return
-  }
-  purchasing.value = true
-  uploadError.value = null
-  try {
-    const executor = await buildDeployExecutor(props.network as Network)
-    await accessGate.purchase(executor, account.value.address)
-  } catch {
-    // The reason is published in `purchaseError` and shown by the prompt.
-  } finally {
-    purchasing.value = false
-  }
-}
-
+// Walrus has no localnet: there the icon can only be a URL.
+const walrusNet = computed<WalrusNetwork | null>(() => (props.network === 'localnet' ? null : props.network))
+const tabs = computed<AppTab[]>(() => [
+  { id: 'url', label: 'URL' },
+  ...(walrusNet.value ? [{ id: 'upload', label: 'Upload to Walrus' }, { id: 'browse', label: 'My Walrus blobs' }] : []),
+])
 const tab = ref('url')
+// A network switch can remove the tab that is showing.
+const shown = computed(() => (tabs.value.some((t) => t.id === tab.value) ? tab.value : 'url'))
 
-// Upload state
-const uploading = ref(false)
-const status = ref('')
-const uploadError = ref<string | null>(null)
-// Set when the relay upload failed after the icon was registered (and paid for): retries on it.
-const retryUpload = ref<(() => Promise<{ url: string }>) | null>(null)
-const retrying = ref(false)
-const fileName = ref('')
-let bytes: Uint8Array | null = null
-
-const permanent = ref(true)
-const maxSizeLabel = `${Math.round(ICON_MAX_BYTES / 1024)} KB`
-const ICON_YEARS = Math.round(ICON_EPOCHS / 26)
-
-const showFreeRelayTip = computed(() => {
-  const publicHost = availableRelays.value.find((r) => r.isPublic)?.host
-  return availableRelays.value.length > 1 && selectedRelayHost.value !== publicHost
-})
-
-onMounted(() => {
-  if (isWalrusNetwork.value) {
-    checkOperatorRelayHealth()
-    void refreshAccess()
-  }
-})
-
-// Re-check NFT ownership whenever the connected account changes.
-watch(
-  () => account.value?.address,
-  () => {
-    accessGate.reset() // forget the previous wallet's access, uses and held pass
-    void refreshAccess()
-  },
-)
-
-function onFile(e: Event): void {
-  uploadError.value = null
-  bytes = null
-  fileName.value = ''
-  const f = (e.target as HTMLInputElement).files?.[0]
-  if (!f) return
-  const invalid = validateIconFile(f)
-  if (invalid) {
-    uploadError.value = invalid
-    return
-  }
-  fileName.value = f.name
-  fileSizeBytes.value = f.size
-  const reader = new FileReader()
-  reader.onload = () => {
-    bytes = new Uint8Array(reader.result as ArrayBuffer)
-  }
-  reader.readAsArrayBuffer(f)
-}
-
-function onRelayChange(newHost: string): void {
-  selectedRelayHost.value = newHost
-}
-
-async function retryUploadOnRegistration(): Promise<void> {
-  const retry = retryUpload.value
-  if (!retry || retrying.value) return
-  retrying.value = true
-  uploadError.value = null
-  try {
-    const result = await retry()
-    emit('update:modelValue', result.url)
-    tab.value = 'url'
-    status.value = 'Uploaded ✓ — URL filled in above.'
-    retryUpload.value = null
-  } catch (e) {
-    uploadError.value = e instanceof Error ? e.message : String(e)
-    retryUpload.value = getUploadRetry<{ url: string }>(e)
-  } finally {
-    retrying.value = false
-    if (account.value) void refreshAccess()
-  }
-}
-
-async function upload(): Promise<void> {
-  if (!bytes) {
-    uploadError.value = 'Choose an image first.'
-    return
-  }
-  if (!account.value) {
-    uploadError.value = 'Connect your wallet first.'
-    return
-  }
-  const address = account.value.address
-  uploading.value = true
-  uploadError.value = null
-  try {
-    const executor = await buildDeployExecutor(props.network as Network)
-
-    // The gated operator relay needs proof of an access pass. For a single-use pass the on-chain
-    // consume is persisted before the upload and reused on a retry (the gateway redeems a consume
-    // digest once, on a successful upload), so an interrupted upload never burns a use; a fresh use
-    // is spent only after the gateway reports the stored one redeemed.
-    const publicHost = availableRelays.value.find((r) => r.isPublic)?.host
-    const gate = accessGate.gate
-    const nftId = accessGate.nftId.value
-    const gated = !!gate && accessGate.hasAccess.value === true && !!nftId && selectedRelayHost.value !== publicHost
-    const access =
-      gated && gate && nftId
-        ? createGatedAccess({
-            storage: browserStorage(),
-            key: consumeStorageKey(walrusNet, gate.gateId, address),
-            relayHost: selectedRelayHost.value,
-            address,
-            gateId: normalizeSuiAddress(gate.gateId),
-            network: walrusNet,
-            nftId,
-            singleUse: accessGate.singleUse.value,
-            buildConsume: (id, nonce) => accessGate.buildConsume(id, nonce),
-            signAndExecute: (tx) => executor.signAndExecute(tx),
-            waitForTransaction: (digest) => executor.waitForTransaction(digest),
-            sign: signPersonalMessage,
-            onStatus: (p) => (status.value = p.detail ?? ''),
-          })
-        : undefined
-
-    const result = await runBlobUpload({
-      bytes,
-      network: walrusNet,
-      relayHost: selectedRelayHost.value,
-      address,
-      rpcUrl: WALRUS_RPC_URLS[walrusNet],
-      wasmUrl: walrusWasmUrl,
-      maxTipMist: Number(WALRUS_MAX_TIP_MIST),
-      epochs: ICON_EPOCHS,
-      deletable: !permanent.value,
-      executor,
-      suiClient: getReadClient(props.network as Network),
-      access,
-      onStatus: (p) => (status.value = p.detail ?? ''),
-    })
-    emit('update:modelValue', result.url)
-    tab.value = 'url'
-    status.value = 'Uploaded ✓ — URL filled in above.'
-    retryUpload.value = null
-  } catch (e) {
-    uploadError.value = e instanceof Error ? e.message : String(e)
-    retryUpload.value = getUploadRetry<{ url: string }>(e)
-    status.value = ''
-  } finally {
-    uploading.value = false
-    if (account.value) void refreshAccess() // uses remaining may have changed
-  }
-}
-
-function onBrowseSelect(url: string): void {
-  emit('update:modelValue', url)
+function picked(picked: string): void {
+  url.value = picked
   tab.value = 'url'
 }
 </script>
 
 <template>
-  <fieldset class="icon-picker">
-    <legend>Icon <span class="hint">(optional)</span></legend>
+  <fieldset>
+    <legend>Icon <span class="note">(optional)</span></legend>
 
-    <UiSegmentedControl
-      v-model="tab"
-      :options="[
-        { id: 'url', label: 'URL' },
-        {
-          id: 'upload',
-          label: 'Upload to Walrus',
-          disabled: !isWalrusNetwork,
-          title: isWalrusNetwork ? undefined : 'Not available on localnet',
-        },
-        {
-          id: 'browse',
-          label: 'My Walrus blobs',
-          disabled: !isWalrusNetwork,
-          title: isWalrusNetwork ? undefined : 'Not available on localnet',
-        },
-      ]"
-      aria-label="Icon source"
-      class="icon-source"
-    />
+    <AppTabNav :model-value="shown" :tabs="tabs" id-prefix="icon" aria-label="Icon source" all-panels @update:model-value="tab = $event" />
 
-    <!-- URL panel -->
-    <div v-show="tab === 'url'" class="icon-panel">
-      <input
-        id="icon"
-        type="url"
-        :value="modelValue"
-        placeholder="https://…"
-        :aria-invalid="error ? true : undefined"
-        :aria-describedby="error ? 'icon-error' : undefined"
-        @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)"
-        @blur="emit('blur')"
-      />
-      <p v-if="error" id="icon-error" class="field-error">{{ error }}</p>
-    </div>
+    <UiTabPanel v-show="shown === 'url'" id-prefix="icon" tab="url">
+      <UiTextField id="icon" v-model="url" type="url" label="Icon URL" placeholder="https://…" :error="error" @blur="emit('blur')" />
+    </UiTabPanel>
 
-    <!-- Upload panel -->
-    <div v-show="tab === 'upload' && isWalrusNetwork" class="icon-panel">
-      <div class="row">
-        <input
-          id="walrus-file"
-          type="file"
-          accept="image/*"
-          aria-label="Choose an image to upload to Walrus"
-          aria-describedby="walrus-help"
-          class="icon-file"
-          @change="onFile"
-        />
-        <!-- No relay is offered while the operator relay's health or pass check is pending, or
-             while a gated relay is up and this wallet has no pass: upload is blocked then
-             (walrus-storage-kit useWalrusRelay policy). -->
-        <button
-          type="button"
-          :disabled="uploading || !connected || !fileName || availableRelays.length === 0"
-          @click="upload"
-        >
-          <span v-if="uploading" class="spinner" aria-hidden="true"></span>
-          Upload to Walrus
-        </button>
-      </div>
-
-      <!-- The help button sits beside the label, not inside it (a label may only contain its control). -->
-      <p class="permanent-toggle">
-        <label>
-          <input v-model="permanent" type="checkbox" />
-          Permanent blob <span class="hint">(cannot be deleted)</span>
-        </label>
-        <UiFieldHint field-id="blob-permanent">
-          A permanent blob cannot be deleted once registered, even within its storage period.
-          Deletable blobs can be removed early by the owner to reclaim unused storage fees (WAL).
-          Permanent is the safer default for a token icon that should remain available indefinitely.
-        </UiFieldHint>
-      </p>
-
-      <fieldset v-if="fileName && availableRelays.length > 1" class="relay-choice">
-        <legend>
-          Upload relay
-          <UiFieldHint field-id="upload-relay">
-            Browsers can't write to Walrus directly, so the blob is sent through an upload relay.
-            The <b>public</b> relay is free; the <b>operator</b> relay is run by this app and may
-            charge a small SUI tip per upload. Both store the identical blob — pick whichever you
-            prefer.
-          </UiFieldHint>
-        </legend>
-        <label v-for="option in availableRelays" :key="option.host">
-          <input
-            type="radio"
-            name="upload-relay"
-            :value="option.host"
-            :checked="selectedRelayHost === option.host"
-            @change="(e) => onRelayChange((e.target as HTMLInputElement).value)"
-          />
-          <span>{{ option.label }}</span>
-        </label>
-      </fieldset>
-
-      <UiNotice v-if="fileName && estimatedCost" class="icon-notice">
-        <strong>Estimated cost:</strong> {{ estimatedCost.label }}
-      </UiNotice>
-
-      <p v-if="fileName && connected && relayPending" class="hint icon-notice" role="status">
-        Checking the upload relay…
-      </p>
-
-      <!-- NFT-gated relay: the operator relay is live but this wallet lacks the access pass. While
-           the operator relay is up it is the only relay offered, so uploading needs a pass. -->
-      <div v-if="fileName && purchaseAccessAvailable" class="icon-notice">
-        <AccessGateCta
-          :gate-configured="accessGate.gateConfigured"
-          :has-access="accessGate.hasAccess.value"
-          :busy="purchasing"
-          :terms="accessGate.terms.value"
-          :terms-error="accessGate.termsError.value"
-          :purchase-error="accessGate.purchaseError.value"
-          @purchase="purchaseAccess"
-        />
-        <button
-          v-if="accessGate.termsError.value && !accessGate.termsLoading.value"
-          type="button"
-          @click="accessGate.loadTerms()"
-        >
-          Read the price again
-        </button>
-      </div>
-
-      <p v-if="showFreeRelayTip" class="hint icon-notice">
-        Tip: select the public relay above to avoid the relay fee.
-      </p>
-
-      <p id="walrus-help" class="upload-note" aria-live="polite">
-        Max {{ maxSizeLabel }} · PNG/JPEG/WebP/SVG. Requires <strong>WAL</strong> (storage) and
-        <strong>SUI</strong> (gas + relay fee) in your wallet; two approvals. Stored for ~{{
-          ICON_YEARS
-        }}
-        years. <span v-if="status">{{ status }}</span>
-      </p>
-      <UiNotice v-if="uploadError" type="error">{{ uploadError }}</UiNotice>
-      <p v-if="retryUpload" class="upload-note">
-        The icon is registered and paid for. <button type="button" :disabled="retrying" @click="retryUploadOnRegistration">{{ retrying ? 'Retrying…' : 'Retry upload' }}</button>
-        (no second payment).
-      </p>
-    </div>
-
-    <!-- Browse panel -->
-    <div v-show="tab === 'browse' && isWalrusNetwork" class="icon-panel">
-      <WalrusBlobBrowser :network="walrusNet" :connected="connected" @select="onBrowseSelect" />
-    </div>
+    <template v-if="walrusNet">
+      <UiTabPanel v-show="shown === 'upload'" id-prefix="icon" tab="upload">
+        <!-- Keyed by network: the pass state and the relay belong to one network. -->
+        <IconUploadPanel :key="walrusNet" :network="network" :connected="connected" @uploaded="picked" />
+      </UiTabPanel>
+      <UiTabPanel v-show="shown === 'browse'" id-prefix="icon" tab="browse">
+        <WalrusBlobBrowser :network="walrusNet" :connected="connected" @select="picked" />
+      </UiTabPanel>
+    </template>
   </fieldset>
 </template>
 
 <style scoped>
-.icon-source {
-  margin-bottom: 0.75rem;
+fieldset {
+  margin: var(--space-sm) 0 0;
+  padding: 0;
+  border: 0;
 }
-
-.icon-file {
-  width: auto;
+legend {
+  padding: 0;
+  font-weight: var(--font-weight-semibold);
 }
-
-.relay-choice {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin: 0.5rem 0;
-}
-
-.relay-choice label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin: 0;
-}
-
-.icon-notice {
-  margin: 0.5rem 0;
-}
-
-.icon-panel {
-  padding-top: 0.5rem;
-}
-
-.permanent-toggle {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  /* Only span the content — otherwise the row stretches the full field width. */
-  width: fit-content;
-  margin: 0.5rem 0 0;
-  font-size: 0.875rem;
-}
-
-.permanent-toggle label {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin: 0;
-  cursor: pointer;
-}
-
-.permanent-toggle input[type='checkbox'] {
-  /* Override the global `input { width: 100% }` so the checkbox stays its
-     natural size instead of consuming most of the row. */
-  width: auto;
-  flex: none;
-  margin: 0;
-}
-
-/* Boxed, muted note that reads as section-level guidance — visually distinct
-   from the Permanent-blob toggle above it. */
-.upload-note {
-  margin: 0.75rem 0 0;
-  padding: 0.5rem 0.7rem;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
+.note {
   color: var(--muted);
-  font-size: 0.85rem;
-  line-height: 1.45;
+  font-weight: var(--font-weight-regular);
 }
 </style>

@@ -81,15 +81,14 @@ async function main() {
   console.log('wallet connected')
 
   // The deploy form is a wizard; the icon picker is on step 2 (token details). Step 1 needs a
-  // valid package + module name before Next is enabled (same as e2e/app.spec.ts).
+  // valid package + module name before Next is enabled (same as e2e/smoke.spec.ts).
   await page.locator('#package').fill('walrus_e2e')
   await page.locator('#module').fill('walruse2e')
   await page.getByRole('button', { name: 'Next', exact: true }).click()
 
-  // UiSegmentedControl hides the native radio and styles its label: click the label, as a user does.
-  const uploadTab = page.getByRole('radio', { name: 'Upload to Walrus' })
-  await page.locator('label', { has: uploadTab }).click()
-  if (!(await uploadTab.isChecked())) fail('the "Upload to Walrus" source did not select')
+  const uploadTab = page.getByRole('tab', { name: 'Upload to Walrus' })
+  await uploadTab.click()
+  if ((await uploadTab.getAttribute('aria-selected')) !== 'true') fail('the "Upload to Walrus" source did not select')
   await page.locator('#walrus-file').setInputFiles(icon)
 
   // Relay policy (walrus-storage-kit useWalrusRelay, anti-bypass): while the operator relay is
@@ -133,8 +132,8 @@ async function main() {
       { timeout: UPLOAD_TIMEOUT, polling: 1000 },
     )
   } catch (e) {
-    const status = await page.locator('#walrus-help').allInnerTexts().catch(() => [])
-    const err = await page.locator('.field-error').allInnerTexts().catch(() => [])
+    const status = await page.locator('output').allInnerTexts().catch(() => [])
+    const err = await page.locator('[role="alert"]').allInnerTexts().catch(() => [])
     console.log('widget status:', JSON.stringify(status))
     console.log('widget errors:', JSON.stringify(err))
     throw e

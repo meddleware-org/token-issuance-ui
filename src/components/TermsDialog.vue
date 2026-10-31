@@ -2,7 +2,7 @@
 // Pre-deploy terms, in the shared UiDialog. Closing by any route (Cancel, Escape, backdrop,
 // close button) counts as cancel; only the "continue" action accepts — UiDialog's return value
 // tells them apart.
-import { UiDialog } from '@meddleware/ui'
+import { UiButton, UiDialog } from '@meddleware/ui'
 
 defineProps<{ open: boolean }>()
 const emit = defineEmits<{
@@ -51,32 +51,24 @@ function onClose(returnValue: string): void {
       By continuing, you confirm that you have read and accept these terms.
     </p>
     <template #actions="{ close }">
-      <button type="button" class="primary" @click="close('accept')">
-        I understand — continue
-      </button>
-      <button type="button" @click="close('cancel')">Cancel</button>
+      <UiButton variant="primary" @click="close('accept')">I understand — continue</UiButton>
+      <UiButton variant="secondary" @click="close('cancel')">Cancel</UiButton>
     </template>
   </UiDialog>
 </template>
 
 <style scoped>
 .terms {
-  padding-left: 1.25rem;
   margin: 0;
-  line-height: 1.6;
+  padding-inline-start: var(--space-sm);
+  line-height: var(--leading-relaxed);
 }
-
-.terms li {
-  margin-bottom: 0.6rem;
+.terms li + li {
+  margin-top: var(--space-2xs);
 }
-
-.terms li:last-child {
-  margin-bottom: 0;
-}
-
 .terms__confirm {
-  margin: 0;
-  font-size: 0.9rem;
+  margin: var(--space-xs) 0 0;
   color: var(--muted);
+  font-size: var(--font-size-sm);
 }
 </style>

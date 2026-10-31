@@ -1,41 +1,30 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import type { PublishResult, TokenConfig } from '@meddleware/token-issuance-client'
-import { explorerObjectUrl } from '../config.js'
+// A deployed coin: where it lives, what the wallet holds, and the full source package (a download, or pushed to the user's own GitHub).
+import { ref } from 'vue'
+import { CopyableAddress, ExplorerLink, UiButton, UiCard, UiNotice, UiStatGrid, UiStatRow } from '@meddleware/ui'
+import { errorMessage, suiExplorerUrl, triggerDownload } from '@meddleware/web-utils'
 import { generatePackageZip } from '@meddleware/token-issuance-client/package'
+import type { PublishResult, TokenConfig } from '@meddleware/token-issuance-client'
+import { explorerNetworkOf } from '../config.js'
 import { fetchLicenseText } from '../lib/licenses.js'
 import GithubPush from './GithubPush.vue'
-import { UiNotice, safeHref } from '@meddleware/ui'
 
 const props = defineProps<{ result: PublishResult; config: TokenConfig }>()
 defineEmits<{ (e: 'restart'): void }>()
 
+const explorer = explorerNetworkOf(props.result.network)
 const downloading = ref(false)
 const downloadError = ref<string | null>(null)
-
-const packageUrl = computed(() => explorerObjectUrl(props.result.network, props.result.packageId))
 
 async function downloadPackage(): Promise<void> {
   downloading.value = true
   downloadError.value = null
   try {
     const licenseText = await fetchLicenseText(props.config.license)
-    const zip = generatePackageZip({
-      config: props.config,
-      licenseText: licenseText ?? undefined,
-      result: props.result,
-    })
-    const blob = new Blob([zip as BlobPart], { type: 'application/zip' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${props.config.packageName}.zip`
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-    URL.revokeObjectURL(url)
+    const zip = generatePackageZip({ config: props.config, licenseText: licenseText ?? undefined, result: props.result })
+    triggerDownload(new Blob([zip as BlobPart], { type: 'application/zip' }), `${props.config.packageName}.zip`)
   } catch (e) {
-    downloadError.value = e instanceof Error ? e.message : String(e)
+    downloadError.value = errorMessage(e)
   } finally {
     downloading.value = false
   }
@@ -43,48 +32,47 @@ async function downloadPackage(): Promise<void> {
 </script>
 
 <template>
-  <section class="card" aria-labelledby="result-h">
-    <h2 id="result-h">🎉 {{ config.symbol }} is live on {{ result.network }}</h2>
+  <UiCard :level="2" :title="`${config.symbol} is live on ${result.network}`">
+    <UiStatGrid>
+      <UiStatRow label="Coin type" align="left"><CopyableAddress :address="result.coinType" label="Copy coin type" :truncate="false" /></UiStatRow>
+      <UiStatRow label="Package" align="left">
+        <CopyableAddress :address="result.packageId" label="Copy package id">
+          <ExplorerLink v-if="explorer" :href="suiExplorerUrl('object', result.packageId, explorer)" :value="result.packageId" />
+        </CopyableAddress>
+      </UiStatRow>
+      <UiStatRow v-if="result.treasuryCapId" label="TreasuryCap" align="left">
+        <CopyableAddress :address="result.treasuryCapId" label="Copy treasury cap id" />
+      </UiStatRow>
+      <UiStatRow v-if="result.metadataCapId" label="MetadataCap" align="left">
+        <CopyableAddress :address="result.metadataCapId" label="Copy metadata cap id" />
+      </UiStatRow>
+      <UiStatRow v-if="!result.treasuryCapId" label="Supply" align="left">Fixed — recorded in the coin registry (no TreasuryCap exists)</UiStatRow>
+      <UiStatRow v-if="!result.metadataCapId" label="Metadata" align="left">Frozen — recorded in the coin registry (no MetadataCap exists)</UiStatRow>
+      <UiStatRow label="Package code" align="left">{{ result.upgradeCapId ? 'Upgradeable' : 'Immutable (UpgradeCap burned)' }}</UiStatRow>
+    </UiStatGrid>
 
-    <dl>
-      <dt>Coin type</dt>
-      <dd class="mono">{{ result.coinType }}</dd>
-      <dt>Package</dt>
-      <dd class="mono">
-        <a :href="safeHref(packageUrl)" target="_blank" rel="noopener noreferrer">
-          {{ result.packageId }}
-        </a>
-      </dd>
-      <dt v-if="result.treasuryCapId">TreasuryCap</dt>
-      <dd v-if="result.treasuryCapId" class="mono">{{ result.treasuryCapId }}</dd>
-      <dt v-if="result.metadataCapId">MetadataCap</dt>
-      <dd v-if="result.metadataCapId" class="mono">{{ result.metadataCapId }}</dd>
-      <dt v-if="!result.treasuryCapId">Supply</dt>
-      <dd v-if="!result.treasuryCapId">Fixed — recorded in the coin registry (no TreasuryCap exists)</dd>
-      <dt v-if="!result.metadataCapId">Metadata</dt>
-      <dd v-if="!result.metadataCapId">Frozen — recorded in the coin registry (no MetadataCap exists)</dd>
-      <dt>Package code</dt>
-      <dd>{{ result.upgradeCapId ? 'Upgradeable' : 'Immutable (UpgradeCap burned)' }}</dd>
-    </dl>
-
-    <div class="row">
-      <button type="button" class="primary" :disabled="downloading" @click="downloadPackage">
-        <span v-if="downloading" class="spinner" aria-hidden="true"></span>
-        Download source package (.zip)
-      </button>
-      <button type="button" @click="$emit('restart')">Deploy another</button>
-    </div>
-    <UiNotice v-if="downloadError" type="error">{{ downloadError }}</UiNotice>
-
-    <GithubPush class="actions" :config="config" :result="result" />
-
-    <p v-once class="hint actions">
-      The download is the full, buildable Move package (matching this on-chain deployment) — your
-      TreasuryCap grants minting rights; keep it safe. This tool takes no custody of your token.
+    <p class="actions">
+      <UiButton variant="primary" :busy="downloading" @click="downloadPackage">Download source package (.zip)</UiButton>
+      <UiButton variant="ghost" @click="$emit('restart')">Deploy another</UiButton>
     </p>
-    <p v-once class="hint">
-      You are the sole author of this token. This tool does not review or endorse it, and its
-      appearance here is not a mark of legitimacy.
+    <UiNotice v-if="downloadError" type="error" :message="downloadError" />
+
+    <GithubPush :config="config" :result="result" />
+
+    <p>
+      The download is the full, buildable Move package (matching this on-chain deployment) — your TreasuryCap grants minting rights; keep it
+      safe. This tool takes no custody of your token.
     </p>
-  </section>
+    <p>
+      You are the sole author of this token. This tool does not review or endorse it, and its appearance here is not a mark of legitimacy.
+    </p>
+  </UiCard>
 </template>
+
+<style scoped>
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+</style>

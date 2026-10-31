@@ -1,19 +1,14 @@
-// The app's Sui read client per network: the wallet-adapter's shared, memoised gRPC client for the
-// configured RPC URL (public fullnodes have dropped JSON-RPC). E2E builds replace it with a stub via
-// `setReadClient`, because gRPC-web responses are binary and cannot be faked at the fetch layer.
+// The app's wallet and Sui read client. The wallet is the shared @meddleware/wallet-adapter singleton bound to the selected network
+// (deploying signs transactions, so only wallets that can are listed); the read client is the adapter's shared, memoised gRPC client for the
+// configured RPC URL (public fullnodes have dropped JSON-RPC). E2E builds stub the client through the adapter's testing module.
+import { createToolWallet, getSuiClient } from '@meddleware/wallet-adapter'
 import type { SuiGrpcClient } from '@mysten/sui/grpc'
-import { getSuiClient } from '@meddleware/wallet-adapter'
 import type { TokenNetwork } from '@meddleware/token-issuance-client'
 import { RPC_URLS } from './config.js'
 
-const overrides = new Map<TokenNetwork, SuiGrpcClient>()
+export const { useWallet, signPersonalMessage } = createToolWallet({ requiredFeatures: ['sui:signTransaction'] })
 
-/** The read client for `network` (an E2E stub when one is set). */
+/** The read client for `network` (an E2E stub when the adapter has one set). */
 export function getReadClient(network: TokenNetwork): SuiGrpcClient {
-  return overrides.get(network) ?? getSuiClient(network, RPC_URLS[network])
-}
-
-/** Replace the client for `network` (E2E builds only). */
-export function setReadClient(network: TokenNetwork, client: SuiGrpcClient): void {
-  overrides.set(network, client)
+  return getSuiClient(network, RPC_URLS[network])
 }

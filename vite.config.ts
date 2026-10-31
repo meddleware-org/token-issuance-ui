@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import { assertE2eOnlyInE2eMode, themeInit, viteTarget } from '@meddleware/frontend-config/vite'
 
 const ZERO_ADDR = '0x' + '0'.repeat(64)
 
@@ -33,23 +34,10 @@ function assertTreasuryConfigured(env: Record<string, string>): void {
 /** Public origin used for the canonical URL + Open Graph tags (`%VITE_PUBLIC_URL%` in index.html). */
 const DEFAULT_PUBLIC_URL = 'https://sui-token-issuance.meddleware.co.uk'
 
-/**
- * VITE_E2E=1 compiles in a mock wallet, a stubbed Sui client and `window.__*` test hooks. It is
- * only allowed in the dedicated `e2e` mode (`npm run build:e2e`), so no production, development
- * or Docker build can carry it — whichever env source (shell, .env file, build arg) set it.
- */
-function assertE2eOnlyInE2eMode(env: Record<string, string>, mode: string): void {
-  if (env.VITE_E2E === '1' && mode !== 'e2e') {
-    throw new Error(
-      `Refusing to run: VITE_E2E=1 is only allowed with --mode e2e (got mode "${mode}"). ` +
-        `Use \`npm run build:e2e\` for the mocked e2e bundle.`,
-    )
-  }
-}
-
 export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  assertE2eOnlyInE2eMode(env, mode)
+  // The end-to-end build (`--mode e2e`) includes a mock wallet; nothing else may (not even through a .env file).
+  assertE2eOnlyInE2eMode(mode, env)
   if (command === 'build' && mode === 'production') assertTreasuryConfigured(env)
   // Every mode (dev, e2e, production) resolves the placeholder; a white-label deployment overrides it
   // with VITE_PUBLIC_URL (Docker build arg / CI var / .env file).
@@ -57,14 +45,14 @@ export default defineConfig(({ command, mode }) => {
 
   return {
     base: "/",
-    plugins: [vue()],
+    plugins: [vue(), themeInit({ default: 'system' })],
     optimizeDeps: {
       // @meddleware/wallet-adapter ships TS + .vue source and holds the shared wallet singleton; if it
       // were pre-bundled, its .vue files (served raw) would load a second copy of the singleton in dev.
       exclude: ['@mysten/move-bytecode-template', '@meddleware/wallet-adapter'],
     },
     build: {
-      target: 'esnext',
+      target: viteTarget(),
       rollupOptions: {
         output: {
           // Pin the Sui SDK into its own long-lived vendor chunk so app changes

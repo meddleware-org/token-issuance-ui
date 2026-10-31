@@ -46,3 +46,6 @@ docs/api/
 # Playwright output
 test-results/
 playwright-report/
+
+# Lighthouse CI
+.lighthouseci/

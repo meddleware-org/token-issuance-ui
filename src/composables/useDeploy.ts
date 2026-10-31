@@ -12,7 +12,7 @@ import {
 } from '@meddleware/token-issuance-client/deploy'
 import type { PublishResult, TokenNetwork } from '@meddleware/token-issuance-client'
 import { buildDeployExecutor } from '../lib/deployExecutor.js'
-import { extractErrorMessage } from '../lib/errors.js'
+import { errorMessage } from '@meddleware/web-utils'
 
 /**
  * Where a deploy stands:
@@ -38,7 +38,7 @@ export function useDeploy(executorFor: (network: TokenNetwork) => Promise<Execut
 
   /** Route a failure: anything after the publish executed never goes back to a fresh deploy. */
   function onFailure(e: unknown): void {
-    error.value = extractErrorMessage(e)
+    error.value = errorMessage(e)
     if (e instanceof DeployUnconfirmedError) {
       result.value = e.result
       pending.value = null

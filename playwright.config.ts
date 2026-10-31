@@ -1,31 +1,8 @@
-import { defineConfig, devices } from '@playwright/test'
+import { definePlaywrightConfig } from '@meddleware/frontend-config/playwright'
 
-// Mocked-RPC UI e2e. Standardised on Playwright (robust; replaces the former
-// Cypress mocked suite, which exits SIGILL in the sandbox). The app is built in the
-// `e2e` mode with VITE_E2E=1 (`npm run build:e2e`) so main.ts registers the mock
-// wallet + stub client; vite.config.ts refuses VITE_E2E in any other mode.
+// Browser tests of the BUILT app (`vite preview` of dist): Chromium locally, all five browser projects in CI (E2E_BROWSERS=all to run
+// them locally). Every request that leaves localhost is refused in the specs, so runs need no network. The screenshot capture
+// (`npm run shots`) is for looking, not asserting.
+// The e2e build (`--mode e2e`) registers a mock wallet and a stub chain whose publish succeeds, so the whole wizard runs offline.
 // Real-chain e2e stays in scripts/e2e-deploy.mjs (npm run e2e:localnet…).
-const PORT = 4173
-
-export default defineConfig({
-  testDir: './e2e',
-  fullyParallel: true,
-  forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  reporter: 'list',
-  use: {
-    baseURL: `http://localhost:${PORT}`,
-    viewport: { width: 1280, height: 800 },
-    trace: 'on-first-retry',
-  },
-  webServer: {
-    command: `npm run build:e2e && npm run preview -- --port ${PORT} --strictPort`,
-    url: `http://localhost:${PORT}/`,
-    reuseExistingServer: !process.env.CI,
-    timeout: 180_000,
-  },
-  projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
-  ],
-})
+export default definePlaywrightConfig({ port: 4292, command: 'npm run build:e2e && npx vite preview --port 4292 --strictPort' })

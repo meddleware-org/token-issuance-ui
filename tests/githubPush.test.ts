@@ -15,7 +15,7 @@ const result = { packageId: '0x1' } as never
 
 async function open() {
   const w = mount(GithubPush, { props: { config, result }, attachTo: document.body })
-  await w.find('button').trigger('click')
+  w.find('details').element.open = true
   return w
 }
 
@@ -49,7 +49,7 @@ describe('GithubPush token handling', () => {
     createRepoAndPush.mockResolvedValue({ owner: 'a', repo: 'r', htmlUrl: 'https://github.com/a/r' })
     const w = await open()
     await w.find('#gh-token').setValue('ghp_secret_value')
-    await w.find('button.primary').trigger('click')
+    await w.findAll('button').find((b) => b.text().includes('Create repo'))!.trigger('click')
     await flushPromises()
     expect(createRepoAndPush).toHaveBeenCalledWith(expect.objectContaining({ token: 'ghp_secret_value' }))
     expect((w.find('#gh-token').element as HTMLInputElement).value).toBe('')
@@ -60,7 +60,7 @@ describe('GithubPush token handling', () => {
     createRepoAndPush.mockRejectedValue(new Error('GitHub: Bad credentials (401)'))
     const w = await open()
     await w.find('#gh-token').setValue('ghp_secret_value')
-    await w.find('button.primary').trigger('click')
+    await w.findAll('button').find((b) => b.text().includes('Create repo'))!.trigger('click')
     await flushPromises()
     expect((w.find('#gh-token').element as HTMLInputElement).value).toBe('')
     expect(w.text()).toContain('Bad credentials')
@@ -71,7 +71,7 @@ describe('GithubPush token handling', () => {
     createRepoAndPush.mockResolvedValue({ owner: 'a', repo: 'r', htmlUrl: 'https://github.com/a/r' })
     const w = await open()
     await w.find('#gh-token').setValue('ghp_secret_value')
-    await w.find('button.primary').trigger('click')
+    await w.findAll('button').find((b) => b.text().includes('Create repo'))!.trigger('click')
     await flushPromises()
     for (const [, value] of setItem.mock.calls) expect(String(value)).not.toContain('ghp_secret_value')
     for (const store of [localStorage, sessionStorage]) {

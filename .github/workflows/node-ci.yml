@@ -53,6 +53,9 @@ jobs:
       - name: Check the bundle carries no e2e harness
         run: npm run check:bundle
 
+      - name: Lighthouse (accessibility 100, best practices, bundle budgets)
+        run: npx lhci autorun
+
   e2e:
     name: Mocked UI e2e (Playwright)
     runs-on: ubuntu-latest
@@ -68,7 +71,9 @@ jobs:
         run: npm ci
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium firefox
+        run: npx playwright install --with-deps chromium firefox webkit
 
-      - name: Run mocked e2e (builds with `npm run build:e2e`)
+      - name: Run mocked e2e on five browsers (builds with `npm run build:e2e`; WCAG 2.2 AA and AAA, reflow, keyboard)
         run: npm run test:e2e
+        env:
+          E2E_BROWSERS: all

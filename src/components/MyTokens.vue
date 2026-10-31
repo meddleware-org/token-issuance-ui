@@ -1,36 +1,29 @@
 <script setup lang="ts">
-// Lists the coins the connected wallet deployed or controls (an owned TreasuryCap<T> or MetadataCap<T>, or a
-// held coin whose package the wallet published — a fixed supply with frozen metadata has no capability). Read-only,
-// mirroring access-gate's "My Gates". Loads on mount and whenever the address or network changes.
-import { computed, ref, watch } from 'vue'
-import {
-  CopyableAddress,
-  ExplorerLink,
-  UiNotice,
-  suiExplorerUrl,
-  type SuiNetwork,
-} from '@meddleware/ui'
-import { listMyTokens, type DeployedToken } from '@meddleware/token-issuance-client'
+// The coins the connected wallet deployed or controls (an owned TreasuryCap<T> or MetadataCap<T>, or a held coin whose package the wallet
+// published — a fixed supply with frozen metadata has no capability). Read-only, like access-gate's "My Gates". Loads on mount and whenever
+// the address or network changes.
+import { computed, ref, shallowRef, watch } from 'vue'
+import { CopyableAddress, ExplorerLink, UiCard, UiEmptyState, UiLiveStatus, UiNotice, UiStatGrid, UiStatRow } from '@meddleware/ui'
+import { createGeneration, errorMessage, suiExplorerUrl } from '@meddleware/web-utils'
+import { listMyTokens, type DeployedToken, type TokenNetwork as Network } from '@meddleware/token-issuance-client'
+import { explorerNetworkOf } from '../config.js'
 import { getReadClient } from '../wallet.js'
-import type { TokenNetwork as Network } from '@meddleware/token-issuance-client'
 
 const props = defineProps<{ owner: string | null; network: Network }>()
 
-// SuiVision has no localnet explorer, so only build object links on public networks.
-const explorerNetwork = computed<SuiNetwork | null>(() =>
-  props.network === 'localnet' ? null : props.network,
-)
+// SuiVision has no localnet explorer, so object links exist only on public networks.
+const explorerNetwork = computed(() => explorerNetworkOf(props.network))
 
-const tokens = ref<DeployedToken[]>([])
+const tokens = shallowRef<DeployedToken[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
 
-// Each load gets a number; a result that arrives after a newer load started (an account or network
-// switch mid-request) is dropped, so one account's or network's tokens never show under another.
-let latest = 0
+// A result that arrives after a newer load started (an account or network switch mid-request) is dropped, so one account's or network's
+// tokens never show under another.
+const generation = createGeneration()
 
 async function load(): Promise<void> {
-  const run = ++latest
+  const current = generation.begin()
   if (!props.owner) {
     tokens.value = []
     error.value = null
@@ -41,13 +34,13 @@ async function load(): Promise<void> {
   error.value = null
   try {
     const found = await listMyTokens(getReadClient(props.network), props.owner)
-    if (run === latest) tokens.value = found
+    if (current()) tokens.value = found
   } catch (e) {
-    if (run !== latest) return
-    error.value = e instanceof Error ? e.message : String(e)
+    if (!current()) return
+    error.value = errorMessage(e)
     tokens.value = []
   } finally {
-    if (run === latest) loading.value = false
+    if (current()) loading.value = false
   }
 }
 
@@ -56,90 +49,42 @@ defineExpose({ reload: load })
 </script>
 
 <template>
-  <div class="my-tokens">
-    <p v-if="loading" class="hint">Loading your deployed tokens…</p>
-    <UiNotice v-else-if="error" type="error">{{ error }}</UiNotice>
-    <p v-else-if="!tokens.length" class="hint">
-      No deployed tokens found for this wallet. Deploy one from the <strong>Deploy</strong> tab.
-    </p>
-    <ul v-else class="my-tokens__list">
-      <li v-for="t in tokens" :key="t.coinType" class="my-tokens__item">
-        <div class="my-tokens__label">{{ t.label }}</div>
-        <dl class="my-tokens__meta">
-          <dt>Coin type</dt>
-          <dd><CopyableAddress :address="t.coinType" label="Copy coin type" /></dd>
-          <dt>Package</dt>
-          <dd>
-            <CopyableAddress :address="t.packageId" label="Copy package id">
-              <ExplorerLink
-                v-if="explorerNetwork"
-                :href="suiExplorerUrl('object', t.packageId, explorerNetwork)"
-                :value="t.packageId"
-              />
-            </CopyableAddress>
-          </dd>
-          <dt>Treasury cap</dt>
-          <dd v-if="t.treasuryCapId">
-            <CopyableAddress :address="t.treasuryCapId" label="Copy treasury cap id">
-              <ExplorerLink
-                v-if="explorerNetwork"
-                :href="suiExplorerUrl('object', t.treasuryCapId, explorerNetwork)"
-                :value="t.treasuryCapId"
-              />
-            </CopyableAddress>
-          </dd>
-          <dd v-else>None — the supply is fixed, or the cap is held elsewhere</dd>
-          <dt>Metadata cap</dt>
-          <dd v-if="t.metadataCapId">
-            <CopyableAddress :address="t.metadataCapId" label="Copy metadata cap id">
-              <ExplorerLink
-                v-if="explorerNetwork"
-                :href="suiExplorerUrl('object', t.metadataCapId, explorerNetwork)"
-                :value="t.metadataCapId"
-              />
-            </CopyableAddress>
-          </dd>
-          <dd v-else>None — the metadata is frozen, or the cap is held elsewhere</dd>
-        </dl>
-      </li>
-    </ul>
-  </div>
+  <UiLiveStatus label="Your tokens" :message="loading ? 'Loading your deployed tokens…' : ''" />
+  <UiNotice v-if="error && !loading" type="error" :message="error" />
+  <UiEmptyState v-else-if="!loading && !tokens.length">No deployed tokens found for this wallet. Deploy one from the Deploy tab.</UiEmptyState>
+  <ul v-else-if="!loading" class="list" role="list">
+    <UiCard v-for="t in tokens" :key="t.coinType" as="li" plain :level="3" :title="t.label">
+      <UiStatGrid>
+        <UiStatRow label="Coin type" align="left"><CopyableAddress :address="t.coinType" label="Copy coin type" :truncate="false" /></UiStatRow>
+        <UiStatRow label="Package" align="left">
+          <CopyableAddress :address="t.packageId" label="Copy package id">
+            <ExplorerLink v-if="explorerNetwork" :href="suiExplorerUrl('object', t.packageId, explorerNetwork)" :value="t.packageId" />
+          </CopyableAddress>
+        </UiStatRow>
+        <UiStatRow label="Treasury cap" align="left">
+          <CopyableAddress v-if="t.treasuryCapId" :address="t.treasuryCapId" label="Copy treasury cap id">
+            <ExplorerLink v-if="explorerNetwork" :href="suiExplorerUrl('object', t.treasuryCapId, explorerNetwork)" :value="t.treasuryCapId" />
+          </CopyableAddress>
+          <template v-else>None — the supply is fixed, or the cap is held elsewhere</template>
+        </UiStatRow>
+        <UiStatRow label="Metadata cap" align="left">
+          <CopyableAddress v-if="t.metadataCapId" :address="t.metadataCapId" label="Copy metadata cap id">
+            <ExplorerLink v-if="explorerNetwork" :href="suiExplorerUrl('object', t.metadataCapId, explorerNetwork)" :value="t.metadataCapId" />
+          </CopyableAddress>
+          <template v-else>None — the metadata is frozen, or the cap is held elsewhere</template>
+        </UiStatRow>
+      </UiStatGrid>
+    </UiCard>
+  </ul>
 </template>
 
 <style scoped>
-.my-tokens__list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.list {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-}
-.my-tokens__item {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 0.75rem 0.9rem;
-  background: var(--surface);
-}
-.my-tokens__label {
-  font-weight: 600;
-  margin-bottom: 0.4rem;
-}
-.my-tokens__meta {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.2rem 0.75rem;
+  gap: var(--space-xs);
   margin: 0;
-  font-size: 0.8rem;
-}
-.my-tokens__meta dt {
-  color: var(--muted);
-  white-space: nowrap;
-}
-.my-tokens__meta dd {
-  margin: 0;
-  min-width: 0;
-  font-family: var(--mw-font-mono);
-  font-size: 0.72rem;
+  padding: 0;
+  list-style: none;
 }
 </style>

@@ -1,17 +1,18 @@
 <script setup lang="ts">
+// The three configuration steps of the deploy wizard (identity, token, settings), one fieldset each. The parent owns the form model
+// and reads the same object back, so the fields edit it in place; an error shows only once its field was left.
 import { computed, reactive } from 'vue'
-import type { FormModel } from '../lib/form.js'
-import type { FormErrors } from '../lib/validation.js'
-import { deriveStructName } from '../lib/validation.js'
+import { UiButton, UiFieldHint, UiSelectField, UiTextField } from '@meddleware/ui'
 import type { TokenNetwork as Network } from '@meddleware/token-issuance-client'
-import LicensePicker from './LicensePicker.vue'
+import type { FormModel } from '../lib/form.js'
+import { deriveStructName, type FormErrors } from '../lib/validation.js'
 import IconPicker from './IconPicker.vue'
-import { UiFormField, UiSelect, UiFieldHint } from '@meddleware/ui'
+import LicensePicker from './LicensePicker.vue'
 
 export type ConfigFormStep = 'identity' | 'token' | 'settings'
 
+const form = defineModel<FormModel>('form', { required: true })
 const props = defineProps<{
-  form: FormModel
   errors: FormErrors
   canProceed: boolean
   network: Network
@@ -20,13 +21,15 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ (e: 'next'): void; (e: 'back'): void }>()
 
+const SUPPLY_POLICIES = [['mintable', 'Mintable'], ['fixed', 'Fixed']] as const
+const METADATA_POLICIES = [['updatable', 'Updatable'], ['frozen', 'Frozen']] as const
+const PACKAGE_POLICIES = [['immutable', 'Immutable'], ['upgradeable', 'Upgradeable']] as const
+
 const structPreview = computed(() => {
-  const m = props.form.moduleName.trim()
+  const m = form.value.moduleName.trim()
   return m ? deriveStructName(m) : '—'
 })
-const coinTypePreview = computed(
-  () => `<package>::${props.form.moduleName.trim() || 'module'}::${structPreview.value}`,
-)
+const coinTypePreview = computed(() => `<package>::${form.value.moduleName.trim() || 'module'}::${structPreview.value}`)
 const identifierError = computed(() => visibleError('packageName') || visibleError('moduleName'))
 
 const touched = reactive(new Set<string>())
@@ -36,259 +39,184 @@ function visibleError(key: string): string | undefined {
 
 function onBlur(key: string): void {
   touched.add(key)
-  const form = props.form as unknown as Record<string, unknown>
-  if (typeof form[key] === 'string') form[key] = (form[key] as string).trim()
+  const fields = form.value as unknown as Record<string, unknown>
+  if (typeof fields[key] === 'string') fields[key] = (fields[key] as string).trim()
 }
 </script>
 
 <template>
   <form novalidate @submit.prevent="emit('next')">
     <!-- Step 1: Identity -->
-    <template v-if="formStep === 'identity'">
-      <fieldset>
-        <legend>Package identity <span class="permanent">(permanent)</span></legend>
-        <div class="grid2">
-          <UiFormField id="package" label="Package name" :error="visibleError('packageName')">
-            <template #label-suffix>
-              <UiFieldHint field-id="package-name">
-                The on-chain Move package name (snake_case, e.g. <b>my_token</b>). It identifies the
-                published package and cannot be changed after deployment.
-              </UiFieldHint>
-            </template>
-            <template #default="{ attrs }">
-              <input
-                type="text"
-                :id="attrs.id" :aria-invalid="attrs['aria-invalid']" :aria-describedby="attrs['aria-describedby']"
-                v-model="form.packageName"
-                placeholder="my_token"
-                autocomplete="off"
-                @blur="onBlur('packageName')"
-              />
-            </template>
-          </UiFormField>
-          <UiFormField id="module" label="Module name" :error="visibleError('moduleName')">
-            <template #label-suffix>
-              <UiFieldHint field-id="module-name">
-                The Move module inside the package (lowercase, e.g. <b>mytoken</b>). The coin type
-                and its one-time-witness struct are derived from this name, so it is permanent too.
-              </UiFieldHint>
-            </template>
-            <template #default="{ attrs }">
-              <input
-                type="text"
-                :id="attrs.id" :aria-invalid="attrs['aria-invalid']" :aria-describedby="attrs['aria-describedby']"
-                v-model="form.moduleName"
-                placeholder="mytoken"
-                autocomplete="off"
-                @blur="onBlur('moduleName')"
-              />
-            </template>
-          </UiFormField>
-        </div>
-        <p class="hint" aria-live="polite">
-          <template v-if="identifierError">
-            Fix the package and module names to preview the coin type.
-          </template>
-          <template v-else>
-            Coin type will be <span class="mono">{{ coinTypePreview }}</span
-            >. The witness struct <span class="mono">{{ structPreview }}</span> is derived from the
-            module name (a Sui requirement).
-          </template>
-        </p>
-      </fieldset>
-    </template>
-
-    <!-- Step 2: Token -->
-    <template v-if="formStep === 'token'">
-      <fieldset>
-        <legend>Token details</legend>
-
-        <div class="grid2">
-          <UiFormField id="name" label="Token name" :error="visibleError('name')">
-            <template #label-suffix>
-              <UiFieldHint field-id="token-name">
-                The human-readable display name shown in wallets and explorers (e.g.
-                <b>My Token</b>). Editable later if you keep the Updatable metadata policy.
-              </UiFieldHint>
-            </template>
-            <template #default="{ attrs }">
-              <input
-                type="text"
-                :id="attrs.id" :aria-invalid="attrs['aria-invalid']" :aria-describedby="attrs['aria-describedby']"
-                v-model="form.name"
-                autocomplete="off"
-                @blur="onBlur('name')"
-              />
-            </template>
-          </UiFormField>
-          <UiFormField id="symbol" label="Symbol" :error="visibleError('symbol')">
-            <template #label-suffix>
-              <UiFieldHint field-id="token-symbol">
-                The short ticker shown in wallets (e.g. <b>MYT</b>), typically 3–5 uppercase
-                letters.
-              </UiFieldHint>
-            </template>
-            <template #default="{ attrs }">
-              <input
-                type="text"
-                :id="attrs.id" :aria-invalid="attrs['aria-invalid']" :aria-describedby="attrs['aria-describedby']"
-                v-model="form.symbol"
-                autocomplete="off"
-                @blur="onBlur('symbol')"
-              />
-            </template>
-          </UiFormField>
-        </div>
-
-        <UiFormField id="description" label="Description" :error="visibleError('description')">
+    <fieldset v-if="formStep === 'identity'">
+      <legend>Package identity <span class="permanent">(permanent)</span></legend>
+      <div class="pair">
+        <UiTextField id="package" v-model="form.packageName" label="Package name" placeholder="my_token" :error="visibleError('packageName')" @blur="onBlur('packageName')">
           <template #label-suffix>
-            &nbsp;<span class="hint">(optional)</span>
-            <UiFieldHint field-id="token-description">
-              A short blurb stored in the coin metadata and shown in some wallets/explorers. Leave
-              blank if you don't need one.
-            </UiFieldHint>
-          </template>
-          <template #default="{ attrs }">
-            <textarea :id="attrs.id" :aria-invalid="attrs['aria-invalid']" :aria-describedby="attrs['aria-describedby']" v-model="form.description" @blur="onBlur('description')" />
-          </template>
-        </UiFormField>
-
-        <UiFormField id="decimals" label="Decimals" :error="visibleError('decimals')">
-          <template #label-suffix>
-            &nbsp;<span class="permanent">(permanent)</span>
-            <UiFieldHint field-id="token-decimals">
-              How many decimal places the coin supports. <b>9</b> is the Sui convention (1 token =
-              1,000,000,000 base units). Fixed at deployment and cannot be changed.
-            </UiFieldHint>
-          </template>
-          <template #default="{ attrs }">
-            <input
-              type="text"
-              :id="attrs.id" :aria-invalid="attrs['aria-invalid']" :aria-describedby="attrs['aria-describedby']"
-              v-model="form.decimals"
-              inputmode="numeric"
-              @blur="onBlur('decimals')"
-            />
-          </template>
-        </UiFormField>
-
-        <IconPicker
-          v-model="form.iconUrl"
-          :network="network"
-          :connected="connected"
-          :error="visibleError('iconUrl')"
-          @blur="onBlur('iconUrl')"
-        />
-      </fieldset>
-    </template>
-
-    <!-- Step 3: Settings -->
-    <template v-if="formStep === 'settings'">
-      <fieldset>
-        <legend>Supply &amp; policies</legend>
-
-        <UiFormField id="supply" label="Initial supply" :error="visibleError('initialSupply')">
-          <template #label-suffix>
-            <UiFieldHint field-id="supply">
-              The number of whole tokens minted when the coin is created and sent to the recipient.
-              Uses your chosen decimal precision — with 9 decimals, 1 token = 1,000,000,000 base units
-              on-chain. Enter <b>0</b> or leave blank for no initial supply. You can mint more later
-              if you choose the Mintable supply policy; a Fixed supply needs an amount above zero.
-            </UiFieldHint>
-          </template>
-          <template #default="{ attrs }">
-            <input
-              type="text"
-              :id="attrs.id" :aria-invalid="attrs['aria-invalid']" :aria-describedby="attrs['aria-describedby']"
-              v-model="form.initialSupply"
-              inputmode="numeric"
-              placeholder="0"
-              @blur="onBlur('initialSupply')"
-            />
-          </template>
-        </UiFormField>
-
-        <div class="grid2">
-          <UiFormField id="supply-policy" label="Supply">
-            <template #label-suffix>
-              <UiFieldHint field-id="supply-policy">
-                <b>Mintable</b>: you keep the TreasuryCap and can mint more tokens at any time.<br />
-                <b>Fixed</b>: the whole supply is minted when the coin is created and the coin registry
-                takes the TreasuryCap — nobody can ever mint more, and wallets can see that.
-              </UiFieldHint>
-            </template>
-            <template #default="{ attrs }">
-              <UiSelect :id="attrs.id" :aria-invalid="attrs['aria-invalid']" :aria-describedby="attrs['aria-describedby']" v-model="form.supplyPolicy">
-                <option value="mintable">Mintable</option>
-                <option value="fixed">Fixed</option>
-              </UiSelect>
-            </template>
-          </UiFormField>
-          <UiFormField id="metadata-policy" label="Metadata">
-            <template #label-suffix>
-              <UiFieldHint field-id="metadata-policy">
-                <b>Updatable</b>: you keep the MetadataCap and can later change the name, symbol,
-                description, or icon.<br />
-                <b>Frozen</b>: the MetadataCap is deleted when the coin is created — all metadata is
-                permanently locked, and wallets can see that.
-              </UiFieldHint>
-            </template>
-            <template #default="{ attrs }">
-              <UiSelect :id="attrs.id" :aria-invalid="attrs['aria-invalid']" :aria-describedby="attrs['aria-describedby']" v-model="form.metadataPolicy">
-                <option value="updatable">Updatable</option>
-                <option value="frozen">Frozen</option>
-              </UiSelect>
-            </template>
-          </UiFormField>
-        </div>
-
-        <UiFormField id="package-policy" label="Package code">
-          <template #label-suffix>
-            <UiFieldHint field-id="package-policy">
-              <b>Immutable</b>: the UpgradeCap is burned — the on-chain code is sealed. Recommended
-              for trust and auditability.<br />
-              <b>Upgradeable</b>: you keep the UpgradeCap and can push code changes to the package
+            <UiFieldHint field-id="package-name">
+              The on-chain Move package name (snake_case, e.g. <b>my_token</b>). It identifies the published package and cannot be changed
               after deployment.
             </UiFieldHint>
           </template>
-          <template #default="{ attrs }">
-            <UiSelect :id="attrs.id" :aria-invalid="attrs['aria-invalid']" :aria-describedby="attrs['aria-describedby']" v-model="form.packagePolicy">
-              <option value="immutable">Immutable</option>
-              <option value="upgradeable">Upgradeable</option>
-            </UiSelect>
-          </template>
-        </UiFormField>
-
-        <UiFormField id="recipient" label="Recipient" :error="visibleError('recipient')">
+        </UiTextField>
+        <UiTextField id="module" v-model="form.moduleName" label="Module name" placeholder="mytoken" :error="visibleError('moduleName')" @blur="onBlur('moduleName')">
           <template #label-suffix>
-            <UiFieldHint field-id="recipient">
-              The Sui address that receives the TreasuryCap, MetadataCap, UpgradeCap (if kept), and
-              any initial supply minted at deployment. Leave blank to send everything to the
-              connected wallet. Enter a different address to separate the deployer wallet from the
-              custody wallet.
+            <UiFieldHint field-id="module-name">
+              The Move module inside the package (lowercase, e.g. <b>mytoken</b>). The coin type and its one-time-witness struct are derived
+              from this name, so it is permanent too.
             </UiFieldHint>
           </template>
-          <template #default="{ attrs }">
-            <input
-              type="text"
-              :id="attrs.id" :aria-invalid="attrs['aria-invalid']" :aria-describedby="attrs['aria-describedby']"
-              v-model="form.recipient"
-              placeholder="0x…"
-              autocomplete="off"
-              @blur="onBlur('recipient')"
-            />
+        </UiTextField>
+      </div>
+      <p class="preview" aria-live="polite">
+        <template v-if="identifierError">Fix the package and module names to preview the coin type.</template>
+        <template v-else>
+          Coin type will be <code>{{ coinTypePreview }}</code
+          >. The witness struct <code>{{ structPreview }}</code> is derived from the module name (a Sui requirement).
+        </template>
+      </p>
+    </fieldset>
+
+    <!-- Step 2: Token -->
+    <fieldset v-else-if="formStep === 'token'">
+      <legend>Token details</legend>
+      <div class="pair">
+        <UiTextField id="name" v-model="form.name" label="Token name" :error="visibleError('name')" @blur="onBlur('name')">
+          <template #label-suffix>
+            <UiFieldHint field-id="token-name">
+              The human-readable display name shown in wallets and explorers (e.g. <b>My Token</b>). Editable later if you keep the Updatable
+              metadata policy.
+            </UiFieldHint>
           </template>
-        </UiFormField>
+        </UiTextField>
+        <UiTextField id="symbol" v-model="form.symbol" label="Symbol" :error="visibleError('symbol')" @blur="onBlur('symbol')">
+          <template #label-suffix>
+            <UiFieldHint field-id="token-symbol">
+              The short ticker shown in wallets (e.g. <b>MYT</b>), typically 3–5 uppercase letters.
+            </UiFieldHint>
+          </template>
+        </UiTextField>
+      </div>
 
-        <LicensePicker v-model="form.license" @name="form.licenseName = $event" />
-      </fieldset>
-    </template>
+      <UiTextField id="description" v-model="form.description" label="Description" :rows="3" :error="visibleError('description')" @blur="onBlur('description')">
+        <template #label-suffix>
+          <span class="note"> (optional)</span>
+          <UiFieldHint field-id="token-description">
+            A short blurb stored in the coin metadata and shown in some wallets/explorers. Leave blank if you don't need one.
+          </UiFieldHint>
+        </template>
+      </UiTextField>
 
-    <div class="row actions">
-      <button v-if="formStep !== 'identity'" type="button" @click="emit('back')">Back</button>
-      <button type="submit" class="primary" :disabled="!canProceed">
-        {{ formStep === 'settings' ? 'Review &amp; deploy' : 'Next' }}
-      </button>
-    </div>
+      <UiTextField id="decimals" v-model="form.decimals" label="Decimals" inputmode="numeric" :error="visibleError('decimals')" @blur="onBlur('decimals')">
+        <template #label-suffix>
+          <span class="permanent"> (permanent)</span>
+          <UiFieldHint field-id="token-decimals">
+            How many decimal places the coin supports. <b>9</b> is the Sui convention (1 token = 1,000,000,000 base units). Fixed at
+            deployment and cannot be changed.
+          </UiFieldHint>
+        </template>
+      </UiTextField>
+
+      <IconPicker v-model="form.iconUrl" :network="network" :connected="connected" :error="visibleError('iconUrl')" @blur="onBlur('iconUrl')" />
+    </fieldset>
+
+    <!-- Step 3: Settings -->
+    <fieldset v-else>
+      <legend>Supply &amp; policies</legend>
+
+      <UiTextField id="supply" v-model="form.initialSupply" label="Initial supply" inputmode="numeric" placeholder="0" :error="visibleError('initialSupply')" @blur="onBlur('initialSupply')">
+        <template #label-suffix>
+          <UiFieldHint field-id="supply">
+            The number of whole tokens minted when the coin is created and sent to the recipient. Uses your chosen decimal precision — with 9
+            decimals, 1 token = 1,000,000,000 base units on-chain. Enter <b>0</b> or leave blank for no initial supply. You can mint more
+            later if you choose the Mintable supply policy; a Fixed supply needs an amount above zero.
+          </UiFieldHint>
+        </template>
+      </UiTextField>
+
+      <div class="pair">
+        <UiSelectField id="supply-policy" v-model="form.supplyPolicy" label="Supply" :options="SUPPLY_POLICIES">
+          <template #label-suffix>
+            <UiFieldHint field-id="supply-policy">
+              <b>Mintable</b>: you keep the TreasuryCap and can mint more tokens at any time.<br />
+              <b>Fixed</b>: the whole supply is minted when the coin is created and the coin registry takes the TreasuryCap — nobody can ever
+              mint more, and wallets can see that.
+            </UiFieldHint>
+          </template>
+        </UiSelectField>
+        <UiSelectField id="metadata-policy" v-model="form.metadataPolicy" label="Metadata" :options="METADATA_POLICIES">
+          <template #label-suffix>
+            <UiFieldHint field-id="metadata-policy">
+              <b>Updatable</b>: you keep the MetadataCap and can later change the name, symbol, description, or icon.<br />
+              <b>Frozen</b>: the MetadataCap is deleted when the coin is created — all metadata is permanently locked, and wallets can see that.
+            </UiFieldHint>
+          </template>
+        </UiSelectField>
+      </div>
+
+      <UiSelectField id="package-policy" v-model="form.packagePolicy" label="Package code" :options="PACKAGE_POLICIES">
+        <template #label-suffix>
+          <UiFieldHint field-id="package-policy">
+            <b>Immutable</b>: the UpgradeCap is burned — the on-chain code is sealed. Recommended for trust and auditability.<br />
+            <b>Upgradeable</b>: you keep the UpgradeCap and can push code changes to the package after deployment.
+          </UiFieldHint>
+        </template>
+      </UiSelectField>
+
+      <UiTextField id="recipient" v-model="form.recipient" label="Recipient" placeholder="0x…" :error="visibleError('recipient')" @blur="onBlur('recipient')">
+        <template #label-suffix>
+          <UiFieldHint field-id="recipient">
+            The Sui address that receives the TreasuryCap, MetadataCap, UpgradeCap (if kept), and any initial supply minted at deployment.
+            Leave blank to send everything to the connected wallet. Enter a different address to separate the deployer wallet from the custody
+            wallet.
+          </UiFieldHint>
+        </template>
+      </UiTextField>
+
+      <LicensePicker v-model="form.license" @name="form.licenseName = $event" />
+    </fieldset>
+
+    <p class="actions">
+      <UiButton v-if="formStep !== 'identity'" variant="ghost" @click="emit('back')">Back</UiButton>
+      <UiButton type="submit" :disabled="!canProceed">{{ formStep === 'settings' ? 'Review & deploy' : 'Next' }}</UiButton>
+    </p>
   </form>
 </template>
+
+<style scoped>
+fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+legend {
+  padding: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+}
+.pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0 var(--space-sm);
+}
+@media (width >= 32.5rem) {
+  .pair {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.permanent {
+  color: var(--danger);
+  font-weight: var(--font-weight-semibold);
+}
+.note {
+  color: var(--muted);
+}
+.preview {
+  color: var(--muted);
+  font-size: var(--font-size-sm);
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+</style>

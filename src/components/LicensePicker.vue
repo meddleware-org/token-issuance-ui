@@ -1,14 +1,12 @@
 <script setup lang="ts">
+// The licence of the downloadable source package: chosen from the SPDX list (popular ones first), with the licence text on demand.
 import { computed, onMounted, ref } from 'vue'
-import { fetchLicenseList, fetchLicenseText, NO_LICENSE } from '../lib/licenses.js'
-import type { SpdxLicense } from '../lib/licenses.js'
-import { UiDialog, UiFieldHint, UiFormField, UiNotice, UiSelect, safeHref } from '@meddleware/ui'
+import { UiButton, UiCodeBlock, UiDialog, UiFieldHint, UiFormField, UiLiveStatus, UiNotice, UiSelect } from '@meddleware/ui'
+import { errorMessage, safeHref } from '@meddleware/web-utils'
+import { fetchLicenseList, fetchLicenseText, NO_LICENSE, type SpdxLicense } from '../lib/licenses.js'
 
-const props = defineProps<{ modelValue: string }>()
-const emit = defineEmits<{
-  (e: 'update:modelValue', id: string): void
-  (e: 'name', name: string): void
-}>()
+const model = defineModel<string>({ required: true })
+const emit = defineEmits<{ (e: 'name', name: string): void }>()
 
 const popular = ref<SpdxLicense[]>([])
 const all = ref<SpdxLicense[]>([])
@@ -16,54 +14,53 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 
 const allExceptNone = computed(() => all.value.filter((x) => x.id !== NO_LICENSE.id))
-const currentLicenseName = computed(
-  () => all.value.find((l) => l.id === props.modelValue)?.name ?? props.modelValue,
-)
+const currentLicenseName = computed(() => all.value.find((l) => l.id === model.value)?.name ?? model.value)
 
-function emitSelection(id: string): void {
-  emit('update:modelValue', id)
-  const found =
-    all.value.find((l) => l.id === id) ?? (id === NO_LICENSE.id ? NO_LICENSE : undefined)
+function announceName(id: string): void {
+  const found = all.value.find((l) => l.id === id) ?? (id === NO_LICENSE.id ? NO_LICENSE : undefined)
   emit('name', found?.name ?? id)
 }
 
 const selectModel = computed({
-  get: () => props.modelValue,
-  set: (id: string) => emitSelection(id),
+  get: () => model.value,
+  set: (id: string) => {
+    model.value = id
+    announceName(id)
+  },
 })
 
 onMounted(async () => {
   try {
-    const cat = await fetchLicenseList()
-    popular.value = cat.popular
-    all.value = cat.all
-    emitSelection(props.modelValue)
+    const catalogue = await fetchLicenseList()
+    popular.value = catalogue.popular
+    all.value = catalogue.all
+    announceName(model.value)
   } catch (e) {
-    error.value = e instanceof Error ? e.message : String(e)
+    error.value = errorMessage(e)
   } finally {
     loading.value = false
   }
 })
 
-// License view modal
-const licenseOpen = ref(false)
-const licenseText = ref<string | null>(null)
-const licenseLoading = ref(false)
-const licenseError = ref<string | null>(null)
+// The licence text, in a dialog.
+const open = ref(false)
+const text = ref<string | null>(null)
+const textLoading = ref(false)
+const textError = ref<string | null>(null)
 
-async function openLicenseModal(): Promise<void> {
-  licenseError.value = null
-  if (props.modelValue !== NO_LICENSE.id) {
-    licenseLoading.value = true
+async function show(): Promise<void> {
+  textError.value = null
+  if (model.value !== NO_LICENSE.id) {
+    textLoading.value = true
     try {
-      licenseText.value = await fetchLicenseText(props.modelValue)
+      text.value = await fetchLicenseText(model.value)
     } catch (e) {
-      licenseError.value = e instanceof Error ? e.message : String(e)
+      textError.value = errorMessage(e)
     } finally {
-      licenseLoading.value = false
+      textLoading.value = false
     }
   }
-  licenseOpen.value = true
+  open.value = true
 }
 </script>
 
@@ -71,110 +68,58 @@ async function openLicenseModal(): Promise<void> {
   <UiFormField id="license-select" label="License">
     <template #label-suffix>
       <UiFieldHint field-id="license-select">
-        Applies only to the downloadable Move source package — embedded in the LICENSE file and
-        source headers. Has <b>no effect on the on-chain token</b> or its transferability. Choose
-        <b>0BSD</b> (default) for a minimal permissive licence, or <b>CC0-1.0</b> for public domain.
-        Choose <b>None</b> to retain all rights.
+        Applies only to the downloadable Move source package — embedded in the LICENSE file and source headers. Has
+        <b>no effect on the on-chain token</b> or its transferability. Choose <b>0BSD</b> (default) for a minimal permissive licence, or
+        <b>CC0-1.0</b> for public domain. Choose <b>None</b> to retain all rights.
       </UiFieldHint>
     </template>
     <template #default="{ attrs }">
-      <span class="license-row">
+      <span class="row">
         <UiSelect
-          v-bind="attrs"
+          :id="attrs.id"
           v-model="selectModel"
           :disabled="loading || Boolean(error)"
-          aria-describedby="license-load-status"
+          :aria-invalid="attrs['aria-invalid']"
+          :aria-describedby="[attrs['aria-describedby'], 'license-load-status'].filter(Boolean).join(' ')"
         >
           <option :value="NO_LICENSE.id" :title="NO_LICENSE.name">{{ NO_LICENSE.id }}</option>
           <optgroup v-if="popular.length" label="Popular">
-            <option
-              v-for="l in popular"
-              :key="'p-' + l.id"
-              :value="l.id"
-              :title="`${l.id} — ${l.name}`"
-            >
-              {{ l.id }}
-            </option>
+            <option v-for="l in popular" :key="'p-' + l.id" :value="l.id" :title="`${l.id} — ${l.name}`">{{ l.id }}</option>
           </optgroup>
           <optgroup v-if="all.length" label="All licenses">
-            <option
-              v-for="l in allExceptNone"
-              :key="l.id"
-              :value="l.id"
-              :title="`${l.id} — ${l.name}`"
-            >
-              {{ l.id }}
-            </option>
+            <option v-for="l in allExceptNone" :key="l.id" :value="l.id" :title="`${l.id} — ${l.name}`">{{ l.id }}</option>
           </optgroup>
         </UiSelect>
-        <button type="button" class="view-btn" :disabled="loading" @click="openLicenseModal">
-          View
-        </button>
+        <UiButton variant="secondary" :disabled="loading" @click="show">View</UiButton>
       </span>
     </template>
   </UiFormField>
-  <p id="license-load-status" class="hint" aria-live="polite">
-    <span v-if="loading"
-      ><span class="spinner" aria-hidden="true"></span> Loading licenses from SPDX…</span
-    >
-    <span v-else-if="error" class="field-error">Couldn't load the license list: {{ error }}</span>
-  </p>
+  <UiLiveStatus id="license-load-status" label="Licenses" :message="loading ? 'Loading licenses from SPDX…' : ''" />
+  <UiNotice v-if="error" type="error" :message="`Couldn't load the license list: ${error}`" />
 
-  <UiDialog v-model:open="licenseOpen" :title="currentLicenseName" width="min(680px, 92vw)">
-    <p v-if="licenseLoading" role="status">
-      <span class="spinner" aria-hidden="true"></span> Loading…
-    </p>
-    <UiNotice v-else-if="licenseError" type="error">{{ licenseError }}</UiNotice>
-    <p v-else-if="modelValue === NO_LICENSE.id">
-      No LICENSE file will be generated. All rights are reserved by the author.
-    </p>
-    <template v-else>
-      <p class="license-spdx">
-        <a
-          :href="safeHref(`https://spdx.org/licenses/${encodeURIComponent(modelValue)}.html`)"
-          target="_blank"
-          rel="noopener noreferrer"
-          >View on SPDX ↗</a
-        >
+  <UiDialog v-model:open="open" :title="currentLicenseName" width="min(680px, 92vw)">
+    <UiLiveStatus label="License text" :message="textLoading ? 'Loading…' : ''" />
+    <UiNotice v-if="textError" type="error" :message="textError" />
+    <p v-else-if="model === NO_LICENSE.id">No LICENSE file will be generated. All rights are reserved by the author.</p>
+    <template v-else-if="!textLoading">
+      <p>
+        <a :href="safeHref(`https://spdx.org/licenses/${encodeURIComponent(model)}.html`)" target="_blank" rel="noopener noreferrer">View on SPDX ↗</a>
       </p>
-      <pre class="license-text">{{ licenseText }}</pre>
+      <UiCodeBlock :code="text ?? ''" label="License text" wrap />
     </template>
     <template #actions="{ close }">
-      <button type="button" @click="close()">Close</button>
+      <UiButton variant="secondary" @click="close()">Close</UiButton>
     </template>
   </UiDialog>
 </template>
 
 <style scoped>
-.license-row {
+.row {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--space-2xs);
   align-items: center;
 }
-
-.license-row :deep(.mw-select) {
+.row :deep(.mw-select) {
   flex: 1;
-}
-
-.view-btn {
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-
-.license-spdx {
-  margin: 0;
-}
-
-.license-text {
-  white-space: pre-wrap;
-  overflow-y: auto;
-  max-height: 55vh;
-  font-size: 0.8rem;
-  font-family: monospace;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 0.75rem;
-  margin: 0;
 }
 </style>

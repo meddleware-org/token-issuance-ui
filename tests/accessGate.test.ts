@@ -2,8 +2,8 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { readdirSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { join } from 'node:path'
-import { useAccessGate, type GateClient } from '@meddleware/walrus-storage-kit'
-import { PUBLIC_WALRUS_RELAY_HOSTS, operatorRelayHost, parseAccessGate } from '../src/config.js'
+import { PUBLIC_WALRUS_RELAY_HOSTS, useAccessGate, type GateClient } from '@meddleware/walrus-storage-kit'
+import { operatorRelayHost, parseAccessGate } from '../src/config.js'
 
 // walrus-storage-kit 0.1.31: the gate must be the published deployment, and the price is read from the chain.
 

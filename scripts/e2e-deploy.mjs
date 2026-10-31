@@ -144,7 +144,7 @@ async function main() {
 
   // Wait for the result screen — this is the confirmation the mocked suite cannot reach.
   await page.getByRole('heading', { name: /is live on/ }).waitFor({ timeout: RESULT_TIMEOUT })
-  const coinType = await page.locator('dd.mono').first().innerText()
+  const coinType = await page.locator('dt', { hasText: 'Coin type' }).locator('xpath=following-sibling::dd[1]').locator('.ca-value').innerText()
   console.log('UI result coinType:', coinType)
 
   // Verify the in-browser source-package download (the client's ./package zip + SPDX licence fetch).

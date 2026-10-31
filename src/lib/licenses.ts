@@ -42,14 +42,14 @@ export const POPULAR_LICENSE_IDS = [
 
 export const DEFAULT_LICENSE_ID = '0BSD'
 
-import {
-  LICENSE_TIMEOUT_MS,
-  MAX_LICENSE_LIST_BYTES,
-  MAX_LICENSE_TEXT_BYTES,
-  fetchWithTimeout,
-  readBoundedJson,
-  readBoundedText,
-} from './boundedFetch.js'
+import { fetchWithTimeout, readBoundedJson, readBoundedText } from '@meddleware/web-utils'
+
+/** Largest SPDX list accepted (the real list is ~120 KiB). */
+export const MAX_LICENSE_LIST_BYTES = 2 * 1024 * 1024
+/** Largest single licence text accepted (the longest SPDX texts are tens of KiB). */
+export const MAX_LICENSE_TEXT_BYTES = 256 * 1024
+/** Time allowed for one licence request, headers and body. */
+export const LICENSE_TIMEOUT_MS = 15_000
 
 type Fetcher = typeof fetch
 

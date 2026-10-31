@@ -2,8 +2,9 @@
 // Vite env vars so they can be set at build/deploy time without code changes.
 // See .env.example.
 import type { TokenNetwork as Network } from '@meddleware/token-issuance-client'
-import { relayGateConfig, requireHttpsHost, type RelayGateConfig } from '@meddleware/walrus-storage-kit'
+import { PUBLIC_WALRUS_RELAY_HOSTS, relayGateConfig, requireHttpsHost, type RelayGateConfig, type WalrusNetwork } from '@meddleware/walrus-storage-kit'
 import { withRuntimeEnv } from '@meddleware/ui'
+import { errorMessage, type SuiNetwork } from '@meddleware/web-utils'
 
 const env = (import.meta as unknown as { env?: Record<string, string | undefined> }).env ?? {}
 
@@ -21,9 +22,9 @@ export const RPC_URLS: Record<Network, string> = {
   localnet: env.VITE_RPC_LOCALNET || 'http://127.0.0.1:9000',
 }
 
-/** Sui explorer base (coin/object links in the result screen). */
-export function explorerObjectUrl(network: Network, id: string): string {
-  return `https://suiscan.xyz/${network}/object/${id}`
+/** The network as the explorer links know it, or `null` where there is no explorer (localnet). */
+export function explorerNetworkOf(network: Network): SuiNetwork | null {
+  return network === 'localnet' ? null : network
 }
 
 /**
@@ -61,14 +62,7 @@ export const SELECTABLE_NETWORKS: Network[] = ['testnet', 'mainnet']
 // writes fail from browsers). The upload is `@meddleware/walrus-storage-client/flow`; see the relay runbook in
 // README.md / CLAUDE.md for the operator side.
 
-/** A Walrus network — a strict subset of {@link Network} (no localnet). */
-export type WalrusNetwork = 'testnet' | 'mainnet'
-
-/** Public Mysten-operated upload relays — the fallback when no operator relay is set. */
-export const PUBLIC_WALRUS_RELAY_HOSTS: Record<WalrusNetwork, string> = {
-  testnet: 'https://upload-relay.testnet.walrus.space',
-  mainnet: 'https://upload-relay.mainnet.walrus.space',
-}
+export type { WalrusNetwork }
 
 /**
  * The operator relay host from `VITE_WALRUS_RELAY_*`, or the public relay when it is unset. walrus-storage-kit
@@ -83,7 +77,7 @@ export function operatorRelayHost(network: WalrusNetwork, value: string | undefi
     requireHttpsHost(value, `VITE_WALRUS_RELAY_${network.toUpperCase()}`)
     return value
   } catch (e) {
-    console.warn(`[token-issuance-ui] operator relay ignored: ${e instanceof Error ? e.message : String(e)}`)
+    console.warn(`[token-issuance-ui] operator relay ignored: ${errorMessage(e)}`)
     return fallback
   }
 }
@@ -155,20 +149,22 @@ export function parseAccessGate(network: WalrusNetwork, envSource: Record<string
       soulbound: (envSource[`VITE_ACCESS_GATE_SOULBOUND_${NET}`] ?? 'true') !== 'false',
     })
   } catch (e) {
-    console.warn(`[token-issuance-ui] access gate for ${network} disabled: ${e instanceof Error ? e.message : String(e)}`)
+    console.warn(`[token-issuance-ui] access gate for ${network} disabled: ${errorMessage(e)}`)
     return null
   }
 }
 
-/** The access gate per Walrus network, or `null` when gating is not configured. */
-export const ACCESS_GATE: Record<WalrusNetwork, RelayGateConfig | null> = {
-  testnet: parseAccessGate('testnet'),
-  mainnet: parseAccessGate('mainnet'),
+const gates = new Map<WalrusNetwork, RelayGateConfig | null>()
+
+/** The access gate for a Walrus network, or `null` when gating is not configured. Parsed on first use, not at import. */
+export function accessGateFor(network: WalrusNetwork): RelayGateConfig | null {
+  if (!gates.has(network)) gates.set(network, parseAccessGate(network))
+  return gates.get(network) ?? null
 }
 
 /** True when an NFT gate is configured for the network's operator relay. */
 export function isAccessGateConfigured(network: WalrusNetwork): boolean {
-  return ACCESS_GATE[network] !== null
+  return accessGateFor(network) !== null
 }
 
 /**

@@ -4,7 +4,12 @@
 // directly from the browser (CORS-enabled). The repo is created in the user's
 // account; this app's backend is never involved.
 
-import { GITHUB_TIMEOUT_MS, MAX_GITHUB_RESPONSE_BYTES, fetchWithTimeout, readBoundedJson, readBoundedText } from './boundedFetch.js'
+import { fetchWithTimeout, readBoundedJson, readBoundedText } from '@meddleware/web-utils'
+
+/** Largest GitHub API reply read (a created-repository record or an error body). */
+export const MAX_GITHUB_RESPONSE_BYTES = 1024 * 1024
+/** Time allowed for one GitHub request, headers and body. */
+export const GITHUB_TIMEOUT_MS = 30_000
 
 const DEFAULT_API_BASE = 'https://api.github.com'
 

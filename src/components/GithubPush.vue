@@ -1,14 +1,16 @@
 <script setup lang="ts">
+// Optional, zero-backend GitHub repo creation with the user's own token: held for one operation, cleared whether it succeeds or fails, and
+// never written to browser storage.
 import { ref } from 'vue'
-import type { PublishResult, TokenConfig } from '@meddleware/token-issuance-client'
-import { UiNotice, safeHref } from '@meddleware/ui'
+import { UiButton, UiCheckField, UiLiveStatus, UiNotice, UiTextField } from '@meddleware/ui'
+import { errorMessage, safeHref } from '@meddleware/web-utils'
 import { buildPackageFiles } from '@meddleware/token-issuance-client/package'
-import { fetchLicenseText } from '../lib/licenses.js'
+import type { PublishResult, TokenConfig } from '@meddleware/token-issuance-client'
 import { createRepoAndPush } from '../lib/github.js'
+import { fetchLicenseText } from '../lib/licenses.js'
 
 const props = defineProps<{ config: TokenConfig; result: PublishResult }>()
 
-const open = ref(false)
 const token = ref('')
 const repoName = ref(props.config.packageName)
 const isPrivate = ref(false)
@@ -23,11 +25,7 @@ async function push(): Promise<void> {
   doneUrl.value = null
   try {
     const licenseText = await fetchLicenseText(props.config.license)
-    const files = buildPackageFiles({
-      config: props.config,
-      licenseText: licenseText ?? undefined,
-      result: props.result,
-    })
+    const files = buildPackageFiles({ config: props.config, licenseText: licenseText ?? undefined, result: props.result })
     const res = await createRepoAndPush({
       token: token.value.trim(),
       repoName: repoName.value.trim(),
@@ -39,10 +37,9 @@ async function push(): Promise<void> {
     })
     doneUrl.value = res.htmlUrl
   } catch (e) {
-    error.value = e instanceof Error ? e.message : String(e)
+    error.value = errorMessage(e)
   } finally {
-    // Never retain the token beyond a single attempt — clear it whether the push
-    // succeeded or failed (a failed push previously left it in the input/memory).
+    // Never retain the token beyond a single attempt — clear it whether the push succeeded or failed.
     token.value = ''
     busy.value = false
     progress.value = ''
@@ -51,65 +48,21 @@ async function push(): Promise<void> {
 </script>
 
 <template>
-  <div>
-    <button type="button" :aria-expanded="open" @click="open = !open">
-      {{ open ? '▾' : '▸' }} Create a GitHub repo (optional)
-    </button>
-
-    <div v-if="open" class="card github-push__form">
-      <p v-once class="hint">
-        Uses your <strong>own</strong> GitHub token — the repo is created in your account and this
-        site's servers are never involved. The token is sent only to
-        <span class="mono">api.github.com</span> over HTTPS, is never stored or logged, and is
-        cleared as soon as the push finishes. Use a fine-grained token with "Contents" and
-        "Administration" write access, or a classic token with the
-        <span class="mono">repo</span> scope.
-      </p>
-
-      <label for="gh-repo">Repository name</label>
-      <input id="gh-repo" v-model="repoName" type="text" autocomplete="off" />
-
-      <label for="gh-token">GitHub token</label>
-      <input
-        id="gh-token"
-        v-model="token"
-        type="password"
-        autocomplete="new-password"
-        spellcheck="false"
-        placeholder="github_pat_… or ghp_…"
-      />
-
-      <label class="github-push__private">
-        <input v-model="isPrivate" type="checkbox" /> Make the repository private
-      </label>
-
-      <div class="row github-push__actions">
-        <button type="button" class="primary" :disabled="busy || !token || !repoName" @click="push">
-          <span v-if="busy" class="spinner" aria-hidden="true"></span> Create repo &amp; push
-        </button>
-        <span v-if="progress" class="hint" aria-live="polite">{{ progress }}</span>
-      </div>
-
-      <UiNotice v-if="error" type="error">{{ error }}</UiNotice>
-      <UiNotice v-if="doneUrl" type="ok">
-        Pushed: <a :href="safeHref(doneUrl)" target="_blank" rel="noopener noreferrer">{{ doneUrl }}</a>
-      </UiNotice>
-    </div>
-  </div>
+  <details>
+    <summary>Create a GitHub repo (optional)</summary>
+    <p>
+      Uses your <strong>own</strong> GitHub token — the repo is created in your account and this site's servers are never involved. The token
+      is sent only to <code>api.github.com</code> over HTTPS, is never stored or logged, and is cleared as soon as the push finishes. Use a
+      fine-grained token with "Contents" and "Administration" write access, or a classic token with the <code>repo</code> scope.
+    </p>
+    <UiTextField id="gh-repo" v-model="repoName" label="Repository name" />
+    <UiTextField id="gh-token" v-model="token" type="password" label="GitHub token" placeholder="github_pat_… or ghp_…" autocomplete="new-password" spellcheck="false" />
+    <UiCheckField v-model="isPrivate" label="Make the repository private" />
+    <p>
+      <UiButton variant="primary" :busy="busy" :disabled="!token || !repoName" @click="push">Create repo &amp; push</UiButton>
+    </p>
+    <UiLiveStatus label="Push progress" :message="progress" />
+    <UiNotice v-if="error" type="error" :message="error" />
+    <UiNotice v-if="doneUrl" type="ok">Pushed: <a :href="safeHref(doneUrl)" target="_blank" rel="noopener noreferrer">{{ doneUrl }}</a></UiNotice>
+  </details>
 </template>
-
-<style scoped>
-.github-push__form {
-  margin-top: 0.5rem;
-}
-.github-push__private {
-  margin-top: 0.75rem;
-  font-weight: 400;
-}
-.github-push__private input {
-  width: auto;
-}
-.github-push__actions {
-  margin-top: 0.75rem;
-}
-</style>

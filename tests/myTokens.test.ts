@@ -1,13 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 
-// Stub @meddleware/ui (its prebuilt dist doesn't render under a second Vue runtime in tests).
-vi.mock('@meddleware/ui', () => ({
-  CopyableAddress: { name: 'CopyableAddress', props: ['address', 'label'], template: '<span>{{ address }}<slot /></span>' },
-  ExplorerLink: { name: 'ExplorerLink', props: ['href', 'label'], template: '<a :href="href">{{ label }}</a>' },
-  UiNotice: { name: 'UiNotice', props: ['type'], template: '<div class="notice"><slot /></div>' },
-  suiExplorerUrl: (network: string, kind: string, id: string) => `https://suivision.example/${network}/${kind}/${id}`,
-}))
+vi.mock('../src/wallet.js', () => ({ getReadClient: () => ({}) }))
 
 const { listMyTokens } = vi.hoisted(() => ({ listMyTokens: vi.fn() }))
 vi.mock('@meddleware/token-issuance-client', () => ({ listMyTokens }))

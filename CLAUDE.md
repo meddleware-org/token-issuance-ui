@@ -13,8 +13,8 @@ user/operator guide.
 This package ships as both a **standalone SPA** and an **embeddable library component**:
 
 - **Standalone SPA** (`npm run dev` / `npm run build`): `src/main.ts` mounts `App.vue`, which
-  is a thin shell that renders `WalletBar` + `TokenIssuanceView`. All deploy logic lives in
-  `TokenIssuanceView` — `App.vue` contains no state.
+  is a thin shell (`UiAppShell`: header with the network, the wallet and the colour mode, then `TokenIssuanceView`, the disclaimer and the footer). All deploy logic lives in
+  `TokenIssuanceView` — `App.vue` holds no deploy state.
 - **Library component** (consumed by `@meddleware/dashboard-ui`): `src/index.ts` exports
   `TokenIssuanceView`, which is imported via the `exports["."]` entry in `package.json`. The
   dashboard's Vite build resolves TypeScript source directly — no separate lib build step.
@@ -38,7 +38,7 @@ which E2E builds stub) — and calls `signAndExecute(tx, { include: { effects, o
 goes through `SuiGrpcClient`, and `VITE_RPC_*` / `E2E_RPC` must be gRPC(-web) endpoints. Do not
 reintroduce `@mysten/sui/jsonRpc`. gRPC may render framework addresses in long form
 (`0x000…02::coin::…`) — match types tolerantly. E2E builds (`npm run build:e2e`: `--mode e2e` +
-`VITE_E2E=1`) inject a stub client via `setReadClient` because gRPC-web responses cannot be faked at
+`VITE_E2E=1`) inject a stub client (`setSuiClientOverride`, through `src/e2e.ts`) because gRPC-web responses cannot be faked at
 the `fetch` layer.
 
 ## Architecture (the money/parity paths matter most)
@@ -54,7 +54,9 @@ The token logic lives in [`@meddleware/token-issuance-client`](https://github.co
 | Source package (files + zip) | client `./package` |
 | Owned coins (`listMyTokens(getReadClient(network), owner)`) | client `.` |
 | Form model and per-field messages | [src/lib/form.ts](src/lib/form.ts), [src/lib/validation.ts](src/lib/validation.ts) (uses the client's `TOKEN_LIMITS`) |
-| Read client (wallet-adapter `getSuiClient`, E2E stub via `setReadClient`) | [src/wallet.ts](src/wallet.ts) |
+| Wallet (`createToolWallet`) and read client (wallet-adapter `getSuiClient`; E2E builds stub it through the adapter's testing module) | [src/wallet.ts](src/wallet.ts) |
+| The wizard's panels (each loads when first shown) | `ConfigForm` (three fieldsets), `IconPicker` (URL / upload / browse tabs → `IconUploadPanel`, `WalrusBlobBrowser`), `LicensePicker`, `ReviewPanel`, `ResultPanel` (+ `GithubPush`), `MyTokens`, `TermsDialog` |
+| The deploy progress list | [src/lib/deploy-steps.ts](src/lib/deploy-steps.ts) → `UiStepper orientation="vertical"` |
 | Wallet executor | [src/lib/deployExecutor.ts](src/lib/deployExecutor.ts) |
 
 - **Two-phase publish** — `init()` creates the coin's objects and sends them to the sender, so they
@@ -90,7 +92,7 @@ The token logic lives in [`@meddleware/token-issuance-client`](https://github.co
    result shows the publish digest, an unconfirmed setup shows the result. Only a failure before the
    publish returns to the review.
 8. **No on-chain logic here — extend the domain client.** `suiBoundary()` from
-   `@meddleware/eslint-config` (the last entry in `eslint.config.ts`) forbids, in `src/` outside
+   `@meddleware/eslint-config` (appended by `vueApp({ sui: true })` in `eslint.config.ts`) forbids, in `src/` outside
    `src/wallet.ts`: value imports of `@mysten/sui/{grpc,client,transactions}` (type-only imports are
    fine; `@mysten/sui/jsonRpc` is banned outright), building transactions and chain reads. URL
    bindings on native elements must go through `safeHref`, `safeIcon`, `suiExplorerUrl` or
@@ -174,16 +176,18 @@ Three distinct categories — do not collapse them (repo convention):
   executor, wallet and relay-gating composables. Patching, PTBs, result parsing, deploy
   orchestration and package generation are tested in `@meddleware/token-issuance-client`.
 - **Mocked-RPC UI e2e (Playwright, `npm run test:e2e`):** wallet/form/publish flow against the
-  stub Sui client + mock wallet in [src/main.ts](src/main.ts). Specs live in
-  [e2e/app.spec.ts](e2e/app.spec.ts): connect/disconnect, no-wallet notice, network choice, identity
-  validation, and the full wizard to a mocked successful deploy — on chromium and firefox.
+  stub Sui client + mock wallet in [src/e2e.ts](src/e2e.ts) (`@meddleware/wallet-adapter/testing`). Specs live in
+  [e2e/smoke.spec.ts](e2e/smoke.spec.ts): connect/disconnect, no-wallet notice, network choice, identity
+  validation, and the full wizard to a mocked successful deploy; [e2e/a11y.spec.ts](e2e/a11y.spec.ts) is the shared sweep
+  (WCAG 2.2 AA and AAA in every colour mode × season for every wizard step, the terms dialog and My Tokens, reflow, text size, forced
+  colours, keyboard). Chromium locally, five browsers in CI (`E2E_BROWSERS=all`).
   `playwright.config.ts` runs `npm run build:e2e` (`VITE_E2E=1 vite build --mode e2e`) and previews
   it. Playwright is the one browser-e2e tool (Cypress dropped 2026-08-07 — SIGILL in the sandbox),
   shared with the real-chain harness. Run `npm run e2e:install` once, then `npm run test:e2e`.
   Cannot reach real confirmation or the source download — those need a real chain (see below).
   Runs in `node-ci.yml` (`e2e` job).
 - **E2E harness isolation (build-time, enforced):**
-  - The harness (mock wallet, stub client, `window.__registerMockWallet` / `__unregisterMockWallet`
+  - The harness (`src/e2e.ts`: the mock wallet, the stub client, `window.__registerMockWallet` / `__unregisterMockWallet`
     / `__e2eAddress`, the fabricated `E2E…` publish digest) is compiled only when
     `import.meta.env.MODE === 'e2e' && VITE_E2E === '1'`; every other build tree-shakes it.
   - `vite.config.ts` throws if `VITE_E2E=1` in any mode other than `e2e` — dev, production and
