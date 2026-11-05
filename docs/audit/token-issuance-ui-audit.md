@@ -3,7 +3,7 @@
 **Classification:** Internal security review
 **Project:** `repos/token-issuance-ui` — `@meddleware/token-issuance-ui`, Vue 3 SPA + library component for client-side Sui coin deployment
 **Project type:** Vue app + UI library (embedded in the dashboard)
-**Template:** AUDIT_TEMPLATE.md (2026-10-08) + AUDIT_TEMPLATE_VUE.md (2026-10-08) + AUDIT_TEMPLATE_TS.md (2026-10-08) + AUDIT_TEMPLATE_SUI_CLIENT.md (2026-10-08) + AUDIT_TEMPLATE_WALRUS.md (2026-09-30) + AUDIT_TEMPLATE_IMG.md (2026-10-08) + AUDIT_TEMPLATE_OPS.md (2026-10-08) + AUDIT_TEMPLATE_AUTH.md (2026-10-08)
+**Template:** AUDIT_TEMPLATE.md (2026-11-01) + AUDIT_TEMPLATE_VUE.md (2026-11-01) + AUDIT_TEMPLATE_TS.md (2026-11-01) + AUDIT_TEMPLATE_SUI_CLIENT.md (2026-10-08) + AUDIT_TEMPLATE_WALRUS.md (2026-09-30) + AUDIT_TEMPLATE_IMG.md (2026-10-08) + AUDIT_TEMPLATE_OPS.md (2026-10-08) + AUDIT_TEMPLATE_AUTH.md (2026-10-08) + AUDIT_TEMPLATE_A11Y.md (2026-11-01)
 **Sui SDK:** `@mysten/sui ^2.34.0` (one copy per host; `npm ls` single version 2.34.0); token logic from `@meddleware/token-issuance-client ^0.0.11` (`@mysten/sui` is its peer; this app's range satisfies `^2.33.2`)
 **Transport:** gRPC(-web) through wallet-adapter's read client (`src/wallet.ts`); no JSON-RPC
 **Networks:** testnet and mainnet in the UI; localnet for development and `e2e:localnet`
@@ -19,7 +19,7 @@
 **Deployed by:** `post-bootstrap/token-issuance-ui/overlays/default`; digest from `config/images.yaml`
 **Build args:** the `VITE_*` public values only (network, treasury, RPC, relay, gate id, tip ceiling, public URL) — none secret, none a test switch
 **Deployment status:** npm v0.0.36 (2026-10-18); image `quay.io/meddleware-org/token-issuance-ui` serving `sui-token-issuance.meddleware.co.uk` at 0.0.36 (`sha256:6b8f5aff…4f2d`; release tag `v0.0.36` = `581e9fd`; released, signature verified and deployed 2026-10-18, rollout succeeded; 0.0.35 `sha256:d9005ca3…` was deployed 2026-10-09; live headers re-checked 2026-10-18); embedded in dashboard 0.1.85 (`dash.meddleware.co.uk/blockchain`, "Token Issuance" tab)
-**Review date:** 2026-09-24 (first pass) · re-verified 2026-10-02 · re-verified 2026-10-09 · fix wave 2026-10-18 (0.0.36, released and deployed); 0.0.41 re-verified 2026-10-30 (Point the developer-docs and indexer links at the machine zone (ADR-0005); current @meddleware packages); 0.0.42 re-verified 2026-10-30 (Dependency updates (minor and patch groups) and workflow action bumps); 0.0.43 re-verified 2026-10-31 (Stepper and panels from ui, wallet modal, lazy panels)
+**Review date:** 2026-09-24 (first pass) · re-verified 2026-10-02 · re-verified 2026-10-09 · fix wave 2026-10-18 (0.0.36, released and deployed); 0.0.41 released 2026-10-30 (Point the developer-docs and indexer links at the machine zone (ADR-0005); current @meddleware packages); 0.0.42 released 2026-10-30 (Dependency updates (minor and patch groups) and workflow action bumps); 0.0.43 released 2026-10-31 (Stepper and panels from ui, wallet modal, lazy panels); frontend-wave delta review 2026-11-01 (real review of the 2026-10-19 → 2026-11-01 changes; see the delta section)
 **Reviewer:** Internal review
 **Severity ceiling:** High — the operator fee is split inside the user's publish transaction, the app patches bytecode the user signs, its icon uploads use the paid, NFT-gated relay, and it can hold the user's GitHub token for one push. It holds no keys and no server.
 **Status:** fix wave 2026-10-18 (0.0.36, commit `0c427e8`; released and deployed 2026-10-18, signature verified, rollout succeeded)
@@ -85,6 +85,8 @@ build, `check:bundle`, `check:licenses` and the audit gate green):
 Posture: no open finding above Info. Remaining items are maintainer-only or mainnet-gated: the real-chain
 environment's reviewer (OQ1), the registry-credential inventory (`OPERATOR_TASKS.md` "Image registry
 credentials"), the mainnet treasury confirmation and the external review in Section D.
+
+**2026-11-01 update.** The view was rebuilt on the shared wallet factory and ui components, the entry shrank to the runtime config and the app, and the helpers moved to web-utils. The review replaced this app's private bundle scan with the shared one (every wallet app now has it; F37), kept the e2e modules out of the tarball (F38), and confirmed the GitHub-token handling (F39) and the sweep (F40); the sweep's first run also found two ui defects, fixed in ui 0.1.38.
 
 ## Threat model / trust boundaries
 
@@ -509,6 +511,40 @@ uses and held pass until it answered; on a disconnect it kept them.
 of the walrus-relay composable). Covered by the picker smoke test mounting against the gated composable; the
 reset itself is walrus-relay's.
 
+### Frontend wave delta review (2026-11-01) — 0.0.39 to 0.0.43 reviewed · 0.0.44 prepared
+
+Scope: the changes since the last substantive entry (2026-10-24, which logged the rename and the runtime endpoint config): `TokenDeployerView` (283 lines) and `WalletBar` replaced by `TokenIssuanceView` on the shared wallet factory, `IconPicker` (486 lines) split into `IconUploadPanel` and a smaller picker, the form and review panels rebuilt from `@meddleware/ui` fields, cards and stepper, `lib/boundedFetch.ts` and `lib/errors.ts` replaced by `@meddleware/web-utils` (`fetchWithTimeout`, `readBoundedJson`, `errorMessage`), `main.ts` reduced from 143 lines (the entry now only loads the runtime config and the app), the end-to-end build mode and the five-browser sweep. The release tool's "re-verified" marks for these releases recorded no review; this section is the review. Read: `main.ts`, `lib/github.ts` (the user's own token: HTTPS only, redirects refused, bounded replies), `config.ts`, `vite.config.ts` (the treasury guard and the e2e refusal), `e2e.ts` and `e2e-data.ts`, `scripts/check-prod-bundle.mjs` (replaced), the Dockerfile and workflows, and the tests. Ran (with the locally packed `ui` 0.1.38, `design-tokens` 0.1.13, `web-utils` 0.0.2, `frontend-config` 0.0.2): the audit gate (0 not allowlisted; the two `extract-zip` advisories are allowlisted until 2027-01-31), `vue-tsc`, lint (stylelint, eslint, html-validate), `vitest` (12 files, 91 tests), the production build, `check:bundle` on that build (no e2e hook and no fabricated publish digest), `npm pack --dry-run` (29 files, 114 KiB, no e2e file), and the browser suite on Chromium, Firefox, WebKit, a Pixel 7 and an iPhone 14 with the CI font (DejaVu Sans through fontconfig): **710 passed in 18.7 minutes**.
+
+### F37 — The production-artefact scan was this repository's own script, and the other wallet apps had none
+**Severity:** Low   **Disposition:** RESOLVED
+**Where:** `scripts/check-prod-bundle.mjs` (a copy of the logic), `package.json` `check:bundle`.
+**Issue:** this was the one app that already scanned its production build for the end-to-end harness (the mock-wallet hooks and the fabricated publish digest `E2E` + 41 `a`), in CI and in the Dockerfile. The scan was a private script; four other wallet apps had no equivalent, so the rule (base §B.2) held in one place only, and the digest marker was written as a regular expression over a string the source built with `'a'.repeat(41)`.
+**Impact:** a later change to the entry file, a bundler upgrade that stops folding the static condition, or a mis-set mode in an image build would ship a mock wallet in a signing app and nothing but a reviewer would notice. Already controlled here; the finding is that the control was not shared
+**Remediation / evidence:** the script is replaced by the shared `check-prod-bundle` of `@meddleware/frontend-config` 0.0.2 (`check-prod-bundle dist --also E2Eaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa`); `E2E_PUBLISH_DIGEST` is now written out as that literal so the scan can look for it as text; the Dockerfile step (`npm run build && npm run check:bundle && npm run licenses`) and the CI step are unchanged in effect, and a CI step now also proves that `VITE_E2E=1` makes a production build fail. Controls run here: the production build is clean; the e2e build left in `dist/` by the browser suite fails the scan on the wallet hooks. 0.0.44.
+
+### F38 — The published tarball carried the end-to-end modules
+**Severity:** Low   **Disposition:** RESOLVED
+**Where:** `package.json` `files` (`src`); the e2e modules are `src/e2e.ts` and `src/e2e-data.ts`.
+**Issue:** the package ships `src/` as a library, and `src/e2e-data.ts`, `src/e2e.ts` — the mock wallet installer and its data — were in it. Nothing imports them from the library entry, but they are test-only code in a published artefact (TS lens B.TS-1; base §B.2 test-only modes).
+**Impact:** consumers download test doubles they never load; no behavioural impact
+**Remediation / evidence:** `"!src/e2e*.ts"` in `files` (`npm pack --dry-run`: 29 files, 114 KiB, no e2e file); `node-ci.yml` asserts that no packed file path matches `e2e`.
+
+### F39 — Positive: the user's own GitHub token still goes only to the GitHub API, over HTTPS, with redirects refused and replies bounded
+**Severity:** Positive
+**Where:** `src/lib/github.ts`
+**Evidence:** `createRepoAndPush` requires an HTTPS API base, sends the token only as an `Authorization` bearer header, and every call that carries it uses `redirect: 'error'`, `credentials: 'omit'`, `cache: 'no-store'`; replies are read with the shared bounded readers (`fetchWithTimeout`, `readBoundedJson`, `readBoundedText`; 1 MiB, 30 s). The move of the helpers to web-utils changed none of that (the existing `github` tests pass against the shared readers).
+
+### F40 — Positive: the shared sweep covers every screen and passes on five browsers with the CI font
+**Severity:** Positive
+**Where:** e2e/a11y.spec.ts (`defineA11ySuite`, AAA `gate`)
+**Evidence:** nine states — disconnected, identity, token, icon upload, settings, the terms dialog, review, done and My Tokens — each at AA and AAA (gating) in all ten theme × season looks, at 320 px, 200% text, in forced colours, under reduced motion and by keyboard, on five browser projects: 710 tests passed with the CI font. The first run of the keyboard sweep found two real defects here, both in `@meddleware/ui` and fixed in 0.1.38 (its audit F24 and F25): a field reached with Shift+Tab sat behind the sticky header on an iPhone-sized screen, and a hover-opened field hint covered the next control's help button and could not be dismissed with Escape.
+
+### Delta notes (A11Y lens, `AUDIT_TEMPLATE_A11Y.md`)
+- **Support promise:** the shared browserslist (`@meddleware/frontend-config/browserslist-config`); build target through `viteTarget()`; compat lints on.
+- **Accessibility gates:** the shared sweep over nine states (axe AA and AAA `gate`; 320 px reflow; 200% text; forced colours; reduced motion; keyboard incl. focus not obscured), Lighthouse CI on the production build, five browser projects in CI. The real-chain suites (`e2e:localnet`, `e2e:testnet`, `e2e:mainnet`, `e2e:walrus`) are separate, opt-in and unchanged.
+- **Known exceptions:** none disabled; the 44 px enhanced target size, link purpose, reading order and screen-reader announcements are reviewed from screenshots (`npm run shots`), not automated.
+- **Supply chain:** `.github/audit-gate.mjs` with two dated `extract-zip` allowlist entries (dev-only, via `@lhci/cli`, expiry 2027-01-31, D104; OPERATOR_TASKS.md) and the `basic-ftp`/`tmp`/`zod` overrides; Dependabot (npm, Actions, Docker); `@meddleware/frontend-config` is a dev dependency (its audit F5).
+
 ## Section A — Invariant verification matrix
 
 | # | Invariant | Enforced at | Proven by | Status |
@@ -888,3 +924,4 @@ the team behind the Sui VM and the Move bytecode format.
   - Not re-run in this pass: the unit tests, the build and the audit gate (the tag's own CI and publish runs succeeded).
 - 2026-10-24 — repository renamed from `token-deployer-ui` to `token-issuance-ui` (workspace naming convention, `docs/architecture/ADR-0003-naming.md`): package, image, host and path names updated throughout. No finding, disposition or evidence changed.
 - 2026-10-24 — machine-zone readiness (workspace ADR-0005, C1z): endpoints read through `@meddleware/ui` `withRuntimeEnv`, loaded from a same-origin `/runtime-config.json` (strict key allowlist, https-only, no credentials/query/fragment; a missing, non-JSON or invalid file keeps the build values) before the app modules load; own `robots.txt` and `llms.txt`. Verified: one build served by static-server 0.1.11 with and without the file calls the configured indexer / falls back, 0 CSP violations, 0 page errors (headless Chromium).
+- 2026-11-01 — frontend-wave delta review of 0.0.39 to 0.0.43. Read the entry, the GitHub integration, the configuration and treasury guard, the e2e harness and the scan it replaces, build configuration, workflows and Dockerfile; ran the gates and the five-browser suite with the CI font (710 passed in 18.7 minutes). Fixed F37 (the production-artefact scan was a private script and four other wallet apps had none: now the shared scanner in all five, plus a refused `VITE_E2E` production build in CI) and F38 (the e2e modules in the published tarball); F39–F40 recorded as Positive. The sweep's first run exposed two `@meddleware/ui` defects (its F24, F25), fixed there. The release tool's bare "re-verified" marks were reworded to "released". `**Template:**` dates reconciled to the 2026-11-01 registry (TS/VUE changes add rows; the VUE colour row moved to A11Y, applied in full here) with no disposition change.

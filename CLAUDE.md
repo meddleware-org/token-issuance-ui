@@ -38,7 +38,7 @@ which E2E builds stub) — and calls `signAndExecute(tx, { include: { effects, o
 goes through `SuiGrpcClient`, and `VITE_RPC_*` / `E2E_RPC` must be gRPC(-web) endpoints. Do not
 reintroduce `@mysten/sui/jsonRpc`. gRPC may render framework addresses in long form
 (`0x000…02::coin::…`) — match types tolerantly. E2E builds (`npm run build:e2e`: `--mode e2e` +
-`VITE_E2E=1`) inject a stub client (`setSuiClientOverride`, through `src/e2e.ts`) because gRPC-web responses cannot be faked at
+`VITE_E2E=1`) inject a stub client (`setSuiClientOverride` from `@meddleware/wallet-adapter/testing`, through `src/e2e.ts`) because gRPC-web responses cannot be faked at
 the `fetch` layer.
 
 ## Architecture (the money/parity paths matter most)
@@ -195,7 +195,7 @@ Three distinct categories — do not collapse them (repo convention):
   - The treasury-guard bypass is `VITE_ALLOW_UNSET_TREASURY=1` only (dev/CI builds); `VITE_E2E` no
     longer bypasses it, and the `e2e` mode never runs the guard. Never set the bypass for an image
     or a deploy — the Dockerfile has no such build arg.
-  - `npm run check:bundle` ([scripts/check-prod-bundle.mjs](scripts/check-prod-bundle.mjs)) fails if
+  - `npm run check:bundle` (the shared `check-prod-bundle` of `@meddleware/frontend-config`, with the fabricated digest as an extra marker) fails if
     `dist/` contains any harness marker. It runs after the production build in `node-ci.yml` and in
     the Dockerfile, so a leaked harness fails CI and the image build. The Dockerfile declares no
     `VITE_E2E` arg and `.dockerignore` keeps `.env.e2e` / `.env*.local` out of the context.
