@@ -4,10 +4,9 @@ import { assertE2eOnlyInE2eMode, themeInit, viteTarget } from '@meddleware/front
 
 const ZERO_ADDR = '0x' + '0'.repeat(64)
 
-// Networks a production build must have a real (non-zero) treasury for. Mirrors
-// SELECTABLE_NETWORKS in src/config.ts — kept as a literal here to avoid importing
-// app code into the build config.
-const REQUIRED_TREASURY_NETWORKS = ['TESTNET', 'MAINNET'] as const
+// Networks a production build must have a real (non-zero) treasury for. Mainnet is not listed: without
+// VITE_FEE_TREASURY_MAINNET the app keeps mainnet closed (isNetworkOpen in src/config.ts), so it never deploys without a fee.
+const REQUIRED_TREASURY_NETWORKS = ['TESTNET'] as const
 
 /**
  * Fail a production build when a selectable network's fee treasury is still the

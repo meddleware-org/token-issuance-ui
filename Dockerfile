@@ -12,7 +12,7 @@
 # Build args (VITE_* are baked into the static bundle at build time):
 #   VITE_NETWORK                        — "testnet" | "mainnet"  (default: testnet)
 #   VITE_FEE_TREASURY_TESTNET           — operator treasury for testnet (REQUIRED — build fails without it)
-#   VITE_FEE_TREASURY_MAINNET           — operator treasury for mainnet (REQUIRED — build fails without it)
+#   VITE_FEE_TREASURY_MAINNET           — treasury for mainnet (optional: mainnet stays closed without it)
 #   VITE_FEE_MIST                       — fee in MIST (optional, default 2000000000)
 #   VITE_WALRUS_RELAY_TESTNET           — operator relay URL for testnet (optional)
 #   VITE_WALRUS_RELAY_MAINNET           — operator relay URL for mainnet (optional)

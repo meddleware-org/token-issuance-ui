@@ -43,9 +43,20 @@ export const FEE_TREASURY: Record<Network, string> = {
   localnet: env.VITE_FEE_TREASURY_LOCALNET || ZERO_ADDR,
 }
 
-/** True when a real treasury has been configured for the network. */
+/**
+ * True when a real treasury has been configured for the network. Mainnet stays closed (see `isNetworkOpen`) until the build carries the
+ * entity's treasury address in `VITE_FEE_TREASURY_MAINNET`: no personal address is committed as a default.
+ */
 export function isFeeConfigured(network: Network): boolean {
   return FEE_TREASURY[network] !== ZERO_ADDR
+}
+
+/**
+ * Whether tokens can be deployed on `network` with this build. A real network (testnet, mainnet) is open only with a fee treasury, so a missing
+ * value can never turn into a free deployment; localnet is a developer network and is always open.
+ */
+export function isNetworkOpen(network: Network, treasuries: Record<Network, string> = FEE_TREASURY): boolean {
+  return network === 'localnet' || treasuries[network] !== ZERO_ADDR
 }
 
 /** Gas budget for the publish transaction (MIST). */

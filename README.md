@@ -65,7 +65,7 @@ host dashboard. See [.env.example](.env.example) for the full list.
 
 | Variable | Purpose | Default |
 | --- | --- | --- |
-| `VITE_FEE_TREASURY_TESTNET` / `_MAINNET` | Operator treasury that receives the fee. **A production build fails if either is the zero address** (bypass with `VITE_ALLOW_UNSET_TREASURY=1`). | committed operator address |
+| `VITE_FEE_TREASURY_TESTNET` / `_MAINNET` | Treasury that receives the fee. **A production build fails if the testnet one is the zero address** (bypass with `VITE_ALLOW_UNSET_TREASURY=1`). Mainnet is optional: while `_MAINNET` is unset the app says token issuance is not open on mainnet and deploys nothing there; set it to the entity's treasury address to open it. | testnet: committed address; mainnet: none |
 | `VITE_FEE_MIST` | Flat fee split from the user's gas coin. | `2000000000` (2 SUI) |
 | `VITE_RPC_TESTNET` / `_MAINNET` | gRPC fullnode endpoint (set a paid RPC for production). JSON-RPC-only endpoints do not work. | public fullnodes |
 | `VITE_PUBLISH_GAS_BUDGET` | Publish gas budget (MIST). | `500000000` |
@@ -185,7 +185,7 @@ testnet mode with the RPC pointed at the local node).
 | Env | Purpose |
 | --- | --- |
 | `SUI_PRIV` | bech32 `suiprivkey1…` for a **funded** deployer key. Export the CLI key: `sui keytool export --key-identity <addr>`. Never faucet-funded on a real network. |
-| `VITE_FEE_TREASURY_TESTNET` / `_MAINNET` | Operator treasury baked into the build (already set in `.env.production`). The build fails if it is the zero address. |
+| `VITE_FEE_TREASURY_TESTNET` / `_MAINNET` | Treasury baked into the build (testnet is set in `.env.production`; mainnet is deliberately not committed). |
 | `E2E_FEE_ADDR` | The treasury to watch for the fee-delta assertion — set it equal to the built treasury. If unset, the fee check is skipped (the app still charges the fee). |
 | `VITE_RPC_TESTNET` / `_MAINNET` and `E2E_RPC` | gRPC endpoint for the build (browser) and the node-side verifier. Defaults to the public fullnodes. |
 | `E2E_MAINNET_CONFIRM=1` | **Mainnet only.** Without it the mainnet runner aborts cleanly (fail-safe default) so it can never publish by accident. |

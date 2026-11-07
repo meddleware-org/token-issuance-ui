@@ -39,7 +39,7 @@ const treasury = FEE_TREASURY[props.network]
         <code>{{ treasury }}</code
         >.
       </template>
-      <template v-else>No operator fee is charged on this network.</template>
+      <template v-else>No fee is charged on this development network.</template>
       Nothing is compiled or signed on a server.
     </p>
     <p>

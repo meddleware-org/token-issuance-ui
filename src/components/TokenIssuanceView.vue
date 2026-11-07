@@ -18,7 +18,7 @@ import {
 import type { TokenNetwork as Network } from '@meddleware/token-issuance-client'
 import { browserStorage } from '@meddleware/walrus-storage-client/flow'
 import { useWallet } from '../wallet.js'
-import { FEE_MIST, FEE_TREASURY, PUBLISH_GAS_BUDGET, isFeeConfigured } from '../config.js'
+import { FEE_MIST, FEE_TREASURY, PUBLISH_GAS_BUDGET, isFeeConfigured, isNetworkOpen } from '../config.js'
 import { emptyForm, toTokenConfig } from '../lib/form.js'
 import { deployStepStatuses } from '../lib/deploy-steps.js'
 import { validateForm, type FormErrors } from '../lib/validation.js'
@@ -51,6 +51,7 @@ const REVIEW_INDEX = CONFIG_STEPS.length
 
 const { account } = useWallet()
 const { network } = useNetwork()
+const networkOpen = computed(() => isNetworkOpen(network.value as Network))
 
 // Top-level tabs — Deploy (the wizard) and My Tokens (coins this wallet has deployed), so the layout matches the other Sui tools
 // (intro → tabs → content).
@@ -123,6 +124,7 @@ async function confirmDeploy(): Promise<void> {
   }
   walletError.value = null
   const net = network.value as Network
+  if (!isNetworkOpen(net)) return
   await flow.deploy({
     config: config.value,
     network: net,
@@ -154,7 +156,12 @@ function restart(): void {
          content until a wallet is connected. -->
     <UiTabPanel id-prefix="token-issuance" :tab="activeTab">
       <WalletGuard message="Connect a Sui wallet to deploy your token.">
-        <template v-if="activeTab === 'deploy'">
+        <UiNotice
+          v-if="activeTab === 'deploy' && !networkOpen"
+          type="info"
+          :message="`Token issuance is not open on ${network} yet. Switch to testnet to try it.`"
+        />
+        <template v-else-if="activeTab === 'deploy'">
           <UiStepper :steps="STEPS" :model-value="stepIndex" @update:model-value="onStepperBack" />
 
           <ConfigForm
