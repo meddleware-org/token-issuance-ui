@@ -69,8 +69,8 @@ async function show(): Promise<void> {
     <template #label-suffix>
       <UiFieldHint field-id="license-select">
         Applies only to the downloadable Move source package — embedded in the LICENSE file and source headers. Has
-        <b>no effect on the on-chain token</b> or its transferability. Choose <b>0BSD</b> (default) for a minimal permissive licence, or
-        <b>CC0-1.0</b> for public domain. Choose <b>None</b> to retain all rights.
+        <strong>no effect on the on-chain token</strong> or its transferability. Choose <code>0BSD</code> (default) for a minimal permissive
+        license, or <code>CC0-1.0</code> for public domain. Choose <code>None</code> to retain all rights.
       </UiFieldHint>
     </template>
     <template #default="{ attrs }">

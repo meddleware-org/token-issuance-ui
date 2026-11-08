@@ -13,3 +13,13 @@
  * keeper — this is a manual/operator step).
  */
 export const ICON_EPOCHS = 53
+
+/** Days in one Walrus epoch (the network parameters at docs.wal.app): two weeks on mainnet, one day on testnet. */
+export const EPOCH_DAYS = { mainnet: 14, testnet: 1 } as const
+
+/** How long an uploaded icon is stored on `network`, as a person reads it (`about 2 years`, `about 53 days`). */
+export function iconStorageLabel(network: keyof typeof EPOCH_DAYS, epochs: number = ICON_EPOCHS): string {
+  const days = epochs * EPOCH_DAYS[network]
+  const span = days >= 365 ? `${Math.round(days / 365)} years` : `${days} days`
+  return network === 'testnet' ? `about ${span} (testnet epochs last a day, and testnet can be reset at any time)` : `about ${span}`
+}

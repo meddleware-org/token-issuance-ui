@@ -21,30 +21,25 @@ function onClose(returnValue: string): void {
     <!-- A list: each item is a discrete, parallel term (announced with an item count). -->
     <ul class="terms">
       <li>
-        All operations — bytecode compilation, transaction construction, and signing — take place
-        entirely <strong>client-side</strong>, meaning on your computer. No code runs on our
-        servers, and no server has any visibility into or control over what happens on your machine.
+        Your coin's code is prepared, and its transactions are built and signed, <strong>in your browser</strong> with your wallet. No code is
+        compiled on a server and no server holds your keys. Your browser does talk to Sui network nodes and, if you upload an icon, to a
+        Walrus upload relay.
       </li>
       <li>
-        This is a neutral, self-service tool. The operator does not review, approve, or endorse any
-        token deployed with it.
+        This is a neutral, self-service tool. Meddleware does not review, approve, or endorse any token created with it.
       </li>
       <li>
-        You are solely responsible for your token, its content, and its use — including compliance
-        with all applicable laws in your jurisdiction.
+        You are solely responsible for your token, its content, and its use, including compliance with all laws that apply to you.
       </li>
       <li>
-        Please don't create tokens that misrepresent projects, impersonate other assets, or
-        facilitate fraud. We can't actually see what you're doing from here, but we thought we'd
-        mention it. Bad vibes.
+        Do not use this tool to create tokens that misrepresent a project, impersonate another asset, or facilitate fraud.
       </li>
       <li>
-        On-chain transactions are irreversible. Review your configuration carefully before
-        confirming.
+        On-chain transactions are irreversible, and so are the fee and the gas they pay. Some choices in your configuration can never be
+        undone either; the next screen lists them. Review it carefully before confirming.
       </li>
       <li>
-        The operator accepts no liability for financial loss, legal consequences, or any harm
-        arising from your use of this tool.
+        Meddleware accepts no liability for financial loss, legal consequences, or any harm arising from your use of this tool.
       </li>
     </ul>
     <p class="terms__confirm">

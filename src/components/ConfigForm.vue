@@ -8,6 +8,7 @@ import type { FormModel } from '../lib/form.js'
 import { deriveStructName, type FormErrors } from '../lib/validation.js'
 import IconPicker from './IconPicker.vue'
 import LicensePicker from './LicensePicker.vue'
+import { METADATA_LABELS, METADATA_TEXT, PACKAGE_LABELS, PACKAGE_TEXT, SUPPLY_LABELS, SUPPLY_TEXT } from '../lib/policies.js'
 
 export type ConfigFormStep = 'identity' | 'token' | 'settings'
 
@@ -21,9 +22,9 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ (e: 'next'): void; (e: 'back'): void }>()
 
-const SUPPLY_POLICIES = [['mintable', 'Mintable'], ['fixed', 'Fixed']] as const
-const METADATA_POLICIES = [['updatable', 'Updatable'], ['frozen', 'Frozen']] as const
-const PACKAGE_POLICIES = [['immutable', 'Immutable'], ['upgradeable', 'Upgradeable']] as const
+const SUPPLY_POLICIES = Object.entries(SUPPLY_LABELS) as [string, string][]
+const METADATA_POLICIES = Object.entries(METADATA_LABELS) as [string, string][]
+const PACKAGE_POLICIES = Object.entries(PACKAGE_LABELS) as [string, string][]
 
 const structPreview = computed(() => {
   const m = form.value.moduleName.trim()
@@ -53,7 +54,7 @@ function onBlur(key: string): void {
         <UiTextField id="package" v-model="form.packageName" label="Package name" placeholder="my_token" :error="visibleError('packageName')" @blur="onBlur('packageName')">
           <template #label-suffix>
             <UiFieldHint field-id="package-name">
-              The on-chain Move package name (snake_case, e.g. <b>my_token</b>). It identifies the published package and cannot be changed
+              The on-chain Move package name (snake_case, for example <code>my_token</code>). It identifies the published package and cannot be changed
               after deployment.
             </UiFieldHint>
           </template>
@@ -61,7 +62,7 @@ function onBlur(key: string): void {
         <UiTextField id="module" v-model="form.moduleName" label="Module name" placeholder="mytoken" :error="visibleError('moduleName')" @blur="onBlur('moduleName')">
           <template #label-suffix>
             <UiFieldHint field-id="module-name">
-              The Move module inside the package (lowercase, e.g. <b>mytoken</b>). The coin type and its one-time-witness struct are derived
+              The Move module inside the package (lowercase, for example <code>mytoken</code>). The coin type and its one-time-witness struct are derived
               from this name, so it is permanent too.
             </UiFieldHint>
           </template>
@@ -83,15 +84,17 @@ function onBlur(key: string): void {
         <UiTextField id="name" v-model="form.name" label="Token name" :error="visibleError('name')" @blur="onBlur('name')">
           <template #label-suffix>
             <UiFieldHint field-id="token-name">
-              The human-readable display name shown in wallets and explorers (e.g. <b>My Token</b>). Editable later if you keep the Updatable
-              metadata policy.
+              The display name shown in wallets and explorers (for example <code>My Token</code>). With the Updatable metadata policy the
+              MetadataCap holder can change it later; with Frozen it is permanent.
             </UiFieldHint>
           </template>
         </UiTextField>
         <UiTextField id="symbol" v-model="form.symbol" label="Symbol" :error="visibleError('symbol')" @blur="onBlur('symbol')">
           <template #label-suffix>
+            <span class="permanent"> (permanent)</span>
             <UiFieldHint field-id="token-symbol">
-              The short ticker shown in wallets (e.g. <b>MYT</b>), typically 3–5 uppercase letters.
+              The short ticker shown in wallets (for example <code>MYT</code>), typically 3–5 uppercase letters.
+              <strong>The symbol can never change</strong>, whichever metadata policy you choose.
             </UiFieldHint>
           </template>
         </UiTextField>
@@ -101,7 +104,8 @@ function onBlur(key: string): void {
         <template #label-suffix>
           <span class="note"> (optional)</span>
           <UiFieldHint field-id="token-description">
-            A short blurb stored in the coin metadata and shown in some wallets/explorers. Leave blank if you don't need one.
+            A short blurb stored in the coin metadata and shown in some wallets and explorers. The MetadataCap holder can change it later
+            unless the metadata is frozen. Leave blank if you don't need one.
           </UiFieldHint>
         </template>
       </UiTextField>
@@ -110,8 +114,8 @@ function onBlur(key: string): void {
         <template #label-suffix>
           <span class="permanent"> (permanent)</span>
           <UiFieldHint field-id="token-decimals">
-            How many decimal places the coin supports. <b>9</b> is the Sui convention (1 token = 1,000,000,000 base units). Fixed at
-            deployment and cannot be changed.
+            How many decimal places the coin supports. <code>9</code> is the Sui convention (1 token = 1,000,000,000 base units).
+            <strong>Fixed at publishing; it can never change.</strong>
           </UiFieldHint>
         </template>
       </UiTextField>
@@ -127,37 +131,36 @@ function onBlur(key: string): void {
         <template #label-suffix>
           <UiFieldHint field-id="supply">
             The number of whole tokens minted when the coin is created and sent to the recipient. Uses your chosen decimal precision — with 9
-            decimals, 1 token = 1,000,000,000 base units on-chain. Enter <b>0</b> or leave blank for no initial supply. You can mint more
+            decimals, 1 token = 1,000,000,000 base units on-chain. Enter <code>0</code> or leave blank for no initial supply. You can mint more
             later if you choose the Mintable supply policy; a Fixed supply needs an amount above zero.
           </UiFieldHint>
         </template>
       </UiTextField>
 
       <div class="pair">
-        <UiSelectField id="supply-policy" v-model="form.supplyPolicy" label="Supply" :options="SUPPLY_POLICIES">
+        <UiSelectField id="supply-policy" v-model="form.supplyPolicy" label="Supply" :options="SUPPLY_POLICIES" :hint="SUPPLY_TEXT[form.supplyPolicy]">
           <template #label-suffix>
             <UiFieldHint field-id="supply-policy">
-              <b>Mintable</b>: you keep the TreasuryCap and can mint more tokens at any time.<br />
-              <b>Fixed</b>: the whole supply is minted when the coin is created and the coin registry takes the TreasuryCap — nobody can ever
-              mint more, and wallets can see that.
+              <dfn>Mintable</dfn>: whoever holds the TreasuryCap can mint more coins. <dfn>Fixed</dfn>: the whole supply is minted now and the
+              coin registry takes the TreasuryCap, so nobody can ever mint more.
             </UiFieldHint>
           </template>
         </UiSelectField>
-        <UiSelectField id="metadata-policy" v-model="form.metadataPolicy" label="Metadata" :options="METADATA_POLICIES">
+        <UiSelectField id="metadata-policy" v-model="form.metadataPolicy" label="Metadata" :options="METADATA_POLICIES" :hint="METADATA_TEXT[form.metadataPolicy]">
           <template #label-suffix>
             <UiFieldHint field-id="metadata-policy">
-              <b>Updatable</b>: you keep the MetadataCap and can later change the name, symbol, description, or icon.<br />
-              <b>Frozen</b>: the MetadataCap is deleted when the coin is created — all metadata is permanently locked, and wallets can see that.
+              <dfn>Updatable</dfn>: whoever holds the MetadataCap can change the name, description and icon. <dfn>Frozen</dfn>: the
+              MetadataCap is deleted, so they can never change. The symbol and decimals are permanent either way.
             </UiFieldHint>
           </template>
         </UiSelectField>
       </div>
 
-      <UiSelectField id="package-policy" v-model="form.packagePolicy" label="Package code" :options="PACKAGE_POLICIES">
+      <UiSelectField id="package-policy" v-model="form.packagePolicy" label="Package code" :options="PACKAGE_POLICIES" :hint="PACKAGE_TEXT[form.packagePolicy]">
         <template #label-suffix>
           <UiFieldHint field-id="package-policy">
-            <b>Immutable</b>: the UpgradeCap is burned — the on-chain code is sealed. Recommended for trust and auditability.<br />
-            <b>Upgradeable</b>: you keep the UpgradeCap and can push code changes to the package after deployment.
+            <dfn>Immutable</dfn>: the UpgradeCap is burned, which seals the on-chain code. <dfn>Upgradeable</dfn>: the recipient gets the
+            UpgradeCap and can publish changed code later.
           </UiFieldHint>
         </template>
       </UiSelectField>
@@ -165,9 +168,9 @@ function onBlur(key: string): void {
       <UiTextField id="recipient" v-model="form.recipient" label="Recipient" placeholder="0x…" :error="visibleError('recipient')" @blur="onBlur('recipient')">
         <template #label-suffix>
           <UiFieldHint field-id="recipient">
-            The Sui address that receives the TreasuryCap, MetadataCap, UpgradeCap (if kept), and any initial supply minted at deployment.
-            Leave blank to send everything to the connected wallet. Enter a different address to separate the deployer wallet from the custody
-            wallet.
+            The Sui address that receives the initial supply and every capability that is not given up: the TreasuryCap (mintable supply),
+            the MetadataCap (updatable metadata) and the UpgradeCap (upgradeable package). Leave blank to send everything to the connected
+            wallet. Enter a different address to separate the deployer wallet from the custody wallet.
           </UiFieldHint>
         </template>
       </UiTextField>

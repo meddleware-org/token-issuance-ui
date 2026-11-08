@@ -28,15 +28,16 @@ export function explorerNetworkOf(network: Network): SuiNetwork | null {
 }
 
 /**
- * The trivial fee (MIST), split from the user's gas coin into the operator
+ * The one-off deployment fee (MIST), split from the user's gas coin into the platform
  * treasury inside the publish PTB. Override with VITE_FEE_MIST. Default 2 SUI,
  * sized by the workspace cost model (decision D57).
  */
 export const FEE_MIST: bigint = BigInt(env.VITE_FEE_MIST || '2000000000') // 2 SUI default
 
-const ZERO_ADDR = '0x0000000000000000000000000000000000000000000000000000000000000000'
+/** The all-zero address: what an unset treasury reads as, and never a place a fee is sent. */
+export const ZERO_ADDR = '0x0000000000000000000000000000000000000000000000000000000000000000'
 
-/** Operator treasury per network (set VITE_FEE_TREASURY_* before launch). */
+/** Platform treasury per network, the recipient of the fee (set VITE_FEE_TREASURY_* before launch). */
 export const FEE_TREASURY: Record<Network, string> = {
   mainnet: env.VITE_FEE_TREASURY_MAINNET || ZERO_ADDR,
   testnet: env.VITE_FEE_TREASURY_TESTNET || ZERO_ADDR,

@@ -3,7 +3,7 @@
 ## Scope
 
 This policy covers `@meddleware/token-issuance-ui`: the browser app (and embeddable view) that lets a
-user publish their own Sui coin from their wallet, pay the operator fee, and download the matching
+user publish their own Sui coin from their wallet, pay the platform fee, and download the matching
 Move source package. It covers `src/**`, the build configuration and the real-chain harness scripts.
 The template artefacts, patching and transaction building are `@meddleware/token-issuance-client`'s
 (report those in that repository).
@@ -17,7 +17,7 @@ These invariants are load-bearing. A report demonstrating that any is violated i
 
 1. **No backend, no custody.** Every transaction is built in the browser and signed by the user's
    wallet; the app holds no keys and no funds.
-2. **Fee integrity.** The operator fee is split from gas to the build-time treasury address inside
+2. **Fee integrity.** The platform fee is split from gas to the build-time treasury address inside
    the publish transaction, and shown (with the treasury address) before signing. A production build
    fails on an unset or zero treasury.
 3. **Layered injection safety.** Token identity fields are validated in the form **and** re-checked
@@ -34,8 +34,8 @@ These invariants are load-bearing. A report demonstrating that any is violated i
 ## Content-Security-Policy
 
 The container image serves `script-src 'self' 'wasm-unsafe-eval'` (the Move bytecode and Walrus
-WebAssembly), no inline scripts, `object-src 'none'`, `base-uri 'self'`; the static-host `_headers`
-file carries the same policy plus HSTS and Permissions-Policy.
+WebAssembly), no inline scripts, `object-src 'none'`, `base-uri 'self'`. The policy is the `chain-wasm`
+profile of `@meddleware/frontend-config`, which `mw-sync --check` keeps equal to the Dockerfile's `ARG CSP`.
 
 ## Supported versions
 

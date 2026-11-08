@@ -11,11 +11,11 @@
 #
 # Build args (VITE_* are baked into the static bundle at build time):
 #   VITE_NETWORK                        — "testnet" | "mainnet"  (default: testnet)
-#   VITE_FEE_TREASURY_TESTNET           — operator treasury for testnet (REQUIRED — build fails without it)
+#   VITE_FEE_TREASURY_TESTNET           — platform treasury for testnet (REQUIRED — build fails without it)
 #   VITE_FEE_TREASURY_MAINNET           — treasury for mainnet (optional: mainnet stays closed without it)
 #   VITE_FEE_MIST                       — fee in MIST (optional, default 2000000000)
-#   VITE_WALRUS_RELAY_TESTNET           — operator relay URL for testnet (optional)
-#   VITE_WALRUS_RELAY_MAINNET           — operator relay URL for mainnet (optional)
+#   VITE_WALRUS_RELAY_TESTNET           — Meddleware relay URL for testnet (optional)
+#   VITE_WALRUS_RELAY_MAINNET           — Meddleware relay URL for mainnet (optional)
 #   VITE_WALRUS_RPC_TESTNET             — gRPC fullnode for Walrus testnet (optional)
 #   VITE_WALRUS_RPC_MAINNET             — gRPC fullnode for Walrus mainnet (optional)
 #   VITE_RPC_TESTNET / VITE_RPC_MAINNET — override gRPC fullnode URLs (optional)
@@ -79,6 +79,9 @@ ENV VITE_NETWORK=${VITE_NETWORK} \
 # No VITE_E2E build arg exists, and vite.config.ts refuses VITE_E2E=1 outside `--mode e2e` (so a
 # stray .env file cannot enable it either); the bundle check is the last line of defence.
 RUN npm run build && npm run check:bundle && npm run licenses
+ARG CSP
+# The CSP has no 'unsafe-inline' for scripts: the build fails if dist/ ever carries an inline <script>.
+RUN npx mw-check-csp-inline "${CSP}" dist
 
 # ── runtime stage ─────────────────────────────────────────────────────────────
 # static-server is a minimal Go binary image — no shell, no package manager.

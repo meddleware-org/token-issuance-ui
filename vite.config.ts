@@ -1,6 +1,6 @@
 import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import { assertE2eOnlyInE2eMode, themeInit, viteTarget } from '@meddleware/frontend-config/vite'
+import { assertE2eOnlyInE2eMode, meddlewareApp } from '@meddleware/frontend-config/vite'
 
 const ZERO_ADDR = '0x' + '0'.repeat(64)
 
@@ -33,7 +33,8 @@ function assertTreasuryConfigured(env: Record<string, string>): void {
 /** Public origin used for the canonical URL + Open Graph tags (`%VITE_PUBLIC_URL%` in index.html). */
 const DEFAULT_PUBLIC_URL = 'https://sui-token-issuance.meddleware.co.uk'
 
-export default defineConfig(({ command, mode }) => {
+export default defineConfig((configEnv) => {
+  const { command, mode } = configEnv
   const env = loadEnv(mode, process.cwd(), '')
   // The end-to-end build (`--mode e2e`) includes a mock wallet; nothing else may (not even through a .env file).
   assertE2eOnlyInE2eMode(mode, env)
@@ -42,34 +43,34 @@ export default defineConfig(({ command, mode }) => {
   // with VITE_PUBLIC_URL (Docker build arg / CI var / .env file).
   process.env.VITE_PUBLIC_URL = (env.VITE_PUBLIC_URL || DEFAULT_PUBLIC_URL).replace(/\/+$/, '')
 
-  return {
-    base: "/",
-    plugins: [vue(), themeInit({ default: 'system' })],
-    optimizeDeps: {
-      // @meddleware/wallet-adapter ships TS + .vue source and holds the shared wallet singleton; if it
-      // were pre-bundled, its .vue files (served raw) would load a second copy of the singleton in dev.
-      exclude: ['@mysten/move-bytecode-template', '@meddleware/wallet-adapter'],
-    },
-    build: {
-      target: viteTarget(),
-      rollupOptions: {
-        output: {
-          // Pin the Sui SDK into its own long-lived vendor chunk so app changes
-          // don't bust its cache. Matched by module id (not package entry, which
-          // @mysten/sui does not expose). @mysten/walrus + move-bytecode-template
-          // are explicitly left out so they stay in their lazy dynamic chunks.
-          manualChunks(id: string) {
-            if (id.includes('@mysten/walrus') || id.includes('move-bytecode-template')) return
-            if (
-              id.includes('@mysten/sui') ||
-              id.includes('@mysten/bcs') ||
-              id.includes('@mysten/wallet-standard')
-            ) {
-              return 'vendor-sui'
-            }
+  // meddlewareApp supplies the browser target, theme-init and keeps @meddleware/wallet-adapter out of
+  // dep pre-bundling (it ships TS + .vue source and holds the shared wallet singleton).
+  return meddlewareApp({
+    plugins: [vue()],
+    theme: 'system',
+    config: {
+      base: '/',
+      optimizeDeps: { exclude: ['@mysten/move-bytecode-template'] },
+      build: {
+        rollupOptions: {
+          output: {
+            // Pin the Sui SDK into its own long-lived vendor chunk so app changes
+            // don't bust its cache. Matched by module id (not package entry, which
+            // @mysten/sui does not expose). @mysten/walrus + move-bytecode-template
+            // are explicitly left out so they stay in their lazy dynamic chunks.
+            manualChunks(id: string) {
+              if (id.includes('@mysten/walrus') || id.includes('move-bytecode-template')) return
+              if (
+                id.includes('@mysten/sui') ||
+                id.includes('@mysten/bcs') ||
+                id.includes('@mysten/wallet-standard')
+              ) {
+                return 'vendor-sui'
+              }
+            },
           },
         },
       },
     },
-  }
+  })(configEnv)
 })

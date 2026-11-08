@@ -16,8 +16,8 @@ this app is its UI.
 2. In the browser, [`@mysten/move-bytecode-template`](https://www.npmjs.com/package/@mysten/move-bytecode-template)
    decodes it; the identifiers and constant pool are patched to the user's values and it is
    re-encoded ([src/templateWasm.ts](src/templateWasm.ts) points the patcher at the wasm asset).
-3. A publish PTB publishes the module, applies the UpgradeCap policy and splits a trivial fee to the
-   operator treasury; a finalize PTB registers the currency, mints the initial supply and applies the
+3. A publish PTB publishes the module, applies the UpgradeCap policy and splits a one-off fee to the
+   platform treasury; a finalize PTB registers the currency, mints the initial supply and applies the
    supply/metadata policies.
 4. The same inputs generate a full, downloadable source package that matches the CLI generator's
    output, so the on-chain package is source-verifiable.
@@ -38,7 +38,7 @@ this app is its UI.
   (`assertTokenConfig`) before it is patched into bytecode or substituted into Move source and
   shell scripts, so no quote/backslash/control character or reserved Move keyword can produce an
   injectable package.
-- **Fee integrity.** The fee is split from the user's own gas coin to the operator
+- **Fee integrity.** The fee is split from the user's own gas coin to the platform
   treasury inside the publish PTB and cannot be redirected at runtime. A production
   build **fails** if the treasury is unset (see below), so revenue can't silently
   burn to `0x0`.
@@ -51,13 +51,13 @@ this app is its UI.
 ```bash
 npm install
 npm run dev          # Vite dev server
-npm run test         # Vitest unit tests (61 tests)
+npm run test         # Vitest unit tests
 npm run type-check   # vue-tsc
 npm run build        # production bundle -> dist/ (runs the treasury guard)
 npm run docs         # TypeDoc API reference -> docs/api/
 ```
 
-## Operator configuration
+## Deployment configuration
 
 Committed defaults live in [.env.production](.env.production) (build) and
 [.env.development](.env.development) (dev server). Override per environment in the
@@ -126,16 +126,17 @@ Cloudflare (proxied DNS) with:
 Open CORS means anyone can use your relay, but every served upload paid a size-scaled
 tip, so third-party use is *profitable* as long as the tip keeps margin.
 
-## Deploy (Cloudflare Pages)
+## Deploy
 
-- Build command: `npm run build` · Output directory: `dist`
-- [public/_headers](public/_headers) sets security headers + asset caching;
-  [public/_redirects](public/_redirects) provides the SPA fallback.
-- SEO: [index.html](index.html) has env-aware canonical/OG/Twitter/JSON-LD, a real
-  `public/og-image.png` (regenerate with `npm run gen:og-image`), and a crawlable
-  static fallback; `public/robots.txt` + `public/sitemap.xml` are included.
-- Before going live, confirm the treasury vars are set (the build enforces this)
-  and point the subdomain at the deployment.
+The production artefact is the container image built from the [Dockerfile](Dockerfile): `npm run build`, the bundle check
+(`npm run check:bundle`) and the third-party licence notices, served by `static-server` with the Content-Security-Policy of the
+`chain-wasm` profile (SPA fallback for extensionless paths, immutable caching for `/assets/`). Build arguments are the `VITE_*` values
+above; the Dockerfile header lists them.
+
+- SEO: [index.html](index.html) has env-aware canonical/OG/Twitter tags, a real `public/og-image.png` (regenerate with
+  `npm run gen:og-image`; a developer tool, not shipped), `public/robots.txt` and `public/sitemap.xml`.
+- Before going live, confirm the treasury vars are set (the build enforces this for testnet; mainnet stays closed until
+  `VITE_FEE_TREASURY_MAINNET` is set) and point the subdomain at the deployment.
 
 ## Keeping the template in sync (single source of truth)
 
@@ -151,7 +152,7 @@ client, then bump the client here.
 - `scripts/e2e-deploy.mjs` — the **network-parametrized real-chain deploy e2e** (headless
   browser + injected wallet): drives the full UI, does a REAL publish, waits for real
   confirmation, checks the result panel, downloads the source zip, and verifies coin type +
-  operator fee on-chain. Covers exactly what the mocked Playwright suite cannot. `scripts/e2e-browser.mjs`
+  platform fee on-chain. Covers exactly what the mocked Playwright suite cannot. `scripts/e2e-browser.mjs`
   is a thin localnet wrapper over it.
 - `scripts/e2e-walrus-browser.mjs` (`npm run e2e:walrus`) — the Walrus icon uploader end-to-end on
   testnet with an injected wallet (`SUI_PRIV` with SUI + WAL); `E2E_RELAY=operator` exercises the
@@ -221,7 +222,7 @@ The human backstop for anything the harness does not assert (run once against te
 - [ ] "Download source package (.zip)" produces a buildable Move package.
 - [ ] "Deploy another" resets the form.
 - [ ] (If used) the icon upload returns a Walrus aggregator URL that renders the image.
-- [ ] The operator treasury received the fee.
+- [ ] The platform treasury received the fee.
 
 ## API reference
 

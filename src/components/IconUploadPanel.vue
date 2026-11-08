@@ -18,7 +18,7 @@ import { getUploadRetry, runBlobUpload } from '@meddleware/walrus-storage-client
 import walrusWasmUrl from '@mysten/walrus-wasm/web/walrus_wasm_bg.wasm?url'
 import type { TokenNetwork as Network } from '@meddleware/token-issuance-client'
 import { buildDeployExecutor } from '../lib/deployExecutor.js'
-import { ICON_EPOCHS } from '../lib/walrus-constants.js'
+import { ICON_EPOCHS, iconStorageLabel } from '../lib/walrus-constants.js'
 import {
   ICON_MAX_BYTES,
   WALRUS_MAX_TIP_MIST,
@@ -79,7 +79,7 @@ let bytes: Uint8Array | null = null
 const reading = createGeneration()
 
 const maxSizeLabel = formatBytes(ICON_MAX_BYTES)
-const ICON_YEARS = Math.round(ICON_EPOCHS / 26)
+const storedFor = iconStorageLabel(walrusNet)
 
 async function refreshAccess(): Promise<void> {
   if (accessGate.gateConfigured && account.value) await accessGate.checkOwnership(account.value.address)
@@ -220,14 +220,15 @@ async function upload(): Promise<void> {
   <UiCheckField v-model="permanent" label="Permanent blob" hint="cannot be deleted" />
   <p>
     A permanent blob cannot be deleted once registered, even within its storage period. Deletable blobs can be removed early by the owner to
-    reclaim unused storage fees (WAL). Permanent is the safer default for a token icon that should remain available indefinitely.
+    reclaim unused storage fees (WAL). Permanent is the safer default for a token icon. Either way the blob is stored only for the period
+    given below.
   </p>
 
   <template v-if="fileName && availableRelays.length > 1">
     <UiSegmentedControl v-model="relayModel" :options="relayOptions" label="Upload relay" layout="wrap" />
     <p>
-      Browsers can't write to Walrus directly, so the blob is sent through an upload relay. The <b>public</b> relay is free; the
-      <b>operator</b> relay is run by this app and may charge a small SUI tip per upload. Both store the identical blob — pick whichever you
+      Browsers can't write to Walrus directly, so the blob is sent through an upload relay. The public relay is free. The Meddleware
+      relay supports this app and may charge a small SUI tip per upload. Both store the identical blob — pick whichever you
       prefer.
     </p>
   </template>
@@ -256,7 +257,7 @@ async function upload(): Promise<void> {
 
   <UiNotice>
     Max {{ maxSizeLabel }} · PNG/JPEG/WebP/SVG. Requires <strong>WAL</strong> (storage) and <strong>SUI</strong> (gas + relay fee) in your
-    wallet; two approvals. Stored for ~{{ ICON_YEARS }} years.
+    wallet; two approvals. Stored for {{ storedFor }}; its owner can extend the storage before then.
   </UiNotice>
   <UiLiveStatus label="Upload progress" :message="status" />
   <UiNotice v-if="uploadError" type="error" :message="uploadError" />

@@ -7,12 +7,14 @@ import { generatePackageZip } from '@meddleware/token-issuance-client/package'
 import type { PublishResult, TokenConfig } from '@meddleware/token-issuance-client'
 import { explorerNetworkOf } from '../config.js'
 import { fetchLicenseText } from '../lib/licenses.js'
+import { policyStatements } from '../lib/policies.js'
 import GithubPush from './GithubPush.vue'
 
 const props = defineProps<{ result: PublishResult; config: TokenConfig }>()
 defineEmits<{ (e: 'restart'): void }>()
 
 const explorer = explorerNetworkOf(props.result.network)
+const statements = policyStatements(props.config)
 const downloading = ref(false)
 const downloadError = ref<string | null>(null)
 
@@ -48,6 +50,9 @@ async function downloadPackage(): Promise<void> {
       </UiStatRow>
       <UiStatRow v-if="!result.treasuryCapId" label="Supply" align="left">Fixed — recorded in the coin registry (no TreasuryCap exists)</UiStatRow>
       <UiStatRow v-if="!result.metadataCapId" label="Metadata" align="left">Frozen — recorded in the coin registry (no MetadataCap exists)</UiStatRow>
+      <UiStatRow v-if="result.upgradeCapId" label="UpgradeCap" align="left">
+        <CopyableAddress :address="result.upgradeCapId" label="Copy upgrade cap id" />
+      </UiStatRow>
       <UiStatRow label="Package code" align="left">{{ result.upgradeCapId ? 'Upgradeable' : 'Immutable (UpgradeCap burned)' }}</UiStatRow>
     </UiStatGrid>
 
@@ -59,9 +64,16 @@ async function downloadPackage(): Promise<void> {
 
     <GithubPush :config="config" :result="result" />
 
+    <p>The download is the full, buildable Move package, matching this on-chain deployment.</p>
+    <h3>What your choices mean now</h3>
+    <ul>
+      <li v-for="s in statements" :key="s.id">
+        <strong>{{ s.label }}: {{ s.choice }}.</strong> {{ s.text }}
+      </li>
+    </ul>
     <p>
-      The download is the full, buildable Move package (matching this on-chain deployment) — your TreasuryCap grants minting rights; keep it
-      safe. This tool takes no custody of your token.
+      Whoever holds a capability has its power, and sending it to another address hands that power over, so keep each one in a wallet you
+      control. This tool takes no custody of your token.
     </p>
     <p>
       You are the sole author of this token. This tool does not review or endorse it, and its appearance here is not a mark of legitimacy.

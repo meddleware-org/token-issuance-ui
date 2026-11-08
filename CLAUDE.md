@@ -1,20 +1,23 @@
 # CLAUDE.md — `token-issuance-ui`
 
 `@meddleware/token-issuance-ui` is a Vue 3 + Vite browser app that lets any user deploy
-their own Sui coin fully client-side (their wallet signs + pays gas + a trivial fee to
-the operator treasury) and download a matching source package. It is the browser
+their own Sui coin fully client-side (their wallet signs + pays gas + a one-off fee to
+the platform treasury) and download a matching source package. It is the browser
 equivalent of the `@meddleware/token-issuance-template-sui` Move package (from which it derives
-its pre-compiled bytecode and source templates). See the repo-root
-[CLAUDE.md](../../../../CLAUDE.md) for context and [README.md](README.md) for the
-user/operator guide.
+its pre-compiled bytecode and source templates). [README.md](README.md) is the developer guide
+(configuration, relay, real-chain runbook).
+
+Words on the page follow the reader: a user sees "Meddleware" and "the platform treasury", never "operator" (that is for whoever runs
+infrastructure, in developer docs), no `VITE_*` names and no script names. `tests/wording.test.ts` holds this for the components.
 
 ## Dual app + library pattern
 
 This package ships as both a **standalone SPA** and an **embeddable library component**:
 
 - **Standalone SPA** (`npm run dev` / `npm run build`): `src/main.ts` mounts `App.vue`, which
-  is a thin shell (`UiAppShell`: header with the network, the wallet and the colour mode, then `TokenIssuanceView`, the disclaimer and the footer). All deploy logic lives in
-  `TokenIssuanceView` — `App.vue` holds no deploy state.
+  is a thin shell (`AppToolShell` from `@meddleware/ui`: header with the colour mode and, in its `actions` slot, the labelled network select and the
+  wallet; the footer carries the documentation links, `VITE_DOCS_URL` / `VITE_DEV_URL` override them), around `TokenIssuanceView` and the disclaimer. All deploy logic lives in
+  `TokenIssuanceView` — `App.vue` holds no deploy state. There is no shared network-select component in `@meddleware/ui`, so the select is local.
 - **Library component** (consumed by `@meddleware/dashboard-ui`): `src/index.ts` exports
   `TokenIssuanceView`, which is imported via the `exports["."]` entry in `package.json`. The
   dashboard's Vite build resolves TypeScript source directly — no separate lib build step.
@@ -41,6 +44,13 @@ reintroduce `@mysten/sui/jsonRpc`. gRPC may render framework addresses in long f
 `VITE_E2E=1`) inject a stub client (`setSuiClientOverride` from `@meddleware/wallet-adapter/testing`, through `src/e2e.ts`) because gRPC-web responses cannot be faked at
 the `fetch` layer.
 
+## Responsibilities and non-responsibilities
+
+- Responsible for: the UI of `@meddleware/token-issuance-client` (the client patches the bytecode, builds the two-phase publish + finalize
+  PTBs and generates the source package and zip); the Walrus icon upload through the relay (`@meddleware/walrus-storage-client`); the
+  access-pass check and proof when the relay is gated.
+- Not responsible for: on-chain accounting or enforcement (the contracts), any backend process (there is none), custody of keys or funds.
+
 ## Architecture (the money/parity paths matter most)
 
 The token logic lives in [`@meddleware/token-issuance-client`](https://github.com/meddleware-org/token-issuance-client)
@@ -53,6 +63,7 @@ The token logic lives in [`@meddleware/token-issuance-client`](https://github.co
 | Publish + finalize PTBs, exact-type result parsing, `deployToken` | client `.` / `./deploy` |
 | Source package (files + zip) | client `./package` |
 | Owned coins (`listMyTokens(getReadClient(network), owner)`) | client `.` |
+| What each policy means on the chain, in the wizard's words (form hints, review, result) | [src/lib/policies.ts](src/lib/policies.ts) — tied to `TokenConfig` by `tests/policies.test.ts` |
 | Form model and per-field messages | [src/lib/form.ts](src/lib/form.ts), [src/lib/validation.ts](src/lib/validation.ts) (uses the client's `TOKEN_LIMITS`) |
 | Wallet (`createToolWallet`) and read client (wallet-adapter `getSuiClient`; E2E builds stub it through the adapter's testing module) | [src/wallet.ts](src/wallet.ts) |
 | The wizard's panels (each loads when first shown) | `ConfigForm` (three fieldsets), `IconPicker` (URL / upload / browse tabs → `IconUploadPanel`, `WalrusBlobBrowser`), `LicensePicker`, `ReviewPanel`, `ResultPanel` (+ `GithubPush`), `MyTokens`, `TermsDialog` |
@@ -83,8 +94,9 @@ The token logic lives in [`@meddleware/token-issuance-client`](https://github.co
    constant in [src/lib/walrus-constants.ts](src/lib/walrus-constants.ts) so the
    eagerly-rendered widget doesn't pull the Walrus chunk into the main bundle.
 6. **One wallet-adapter in a host.** `@meddleware/wallet-adapter` is a peerDependency
-   (`>=0.0.12 <0.2.0`, plus a devDependency): the host's single copy must satisfy every embedded
-   tool, or each gets its own wallet connection.
+   (`>=0.0.22 <0.2.0`, plus a devDependency): the host's single copy must satisfy every embedded
+   tool, or each gets its own wallet connection. The adapter `markRaw`s the wallet objects (their private-field getters crash under
+   Vue's proxy); never put a wallet object in this app's reactive state.
 
 7. **A published coin is never deployed twice.** `src/composables/useDeploy.ts` routes every failure
    after the publish executed (`PublishedError` from the client) away from the review step: an
@@ -97,6 +109,15 @@ The token logic lives in [`@meddleware/token-issuance-client`](https://github.co
    fine; `@mysten/sui/jsonRpc` is banned outright), building transactions and chain reads. URL
    bindings on native elements must go through `safeHref`, `safeIcon`, `suiExplorerUrl` or
    `walruscanBlobUrl`. Do not disable it — move the logic into the domain client instead.
+
+9. **The page states exactly what the chain allows.** Every hint, review line and result line about the supply, metadata and package policies
+   comes from [src/lib/policies.ts](src/lib/policies.ts). The Sui framework's coin registry lets the `MetadataCap` holder change the
+   **name, description and icon URL** (`set_name`, `set_description`, `set_icon_url`) and has no setter for the **symbol** or the
+   **decimals**, which are permanent; deleting the MetadataCap (frozen metadata) ends all three setters for good. The `TreasuryCap`
+   mints (and burns); a fixed supply hands it to the registry; the `UpgradeCap` is burned (immutable) or goes to the recipient. Change a
+   statement only with the framework source and the Move template in view, and update `tests/policies.test.ts`.
+10. **Mainnet stays closed until a treasury is configured** (`isNetworkOpen` in `src/config.ts`; `tests/networkOpen.test.ts`): without
+    `VITE_FEE_TREASURY_MAINNET` the view shows a notice and deploys nothing there. No personal address is ever a default.
 
 ## Walrus icons
 
@@ -173,7 +194,7 @@ the relay source `crates/walrus-upload-relay`.)
 Three distinct categories — do not collapse them (repo convention):
 
 - **Pure unit (Vitest, `npm test`):** form validation, licenses, github, errors, the deploy
-  executor, wallet and relay-gating composables. Patching, PTBs, result parsing, deploy
+  executor, wallet and relay-gating composables, the policy statements, the review's fee line and the wording of the components. Patching, PTBs, result parsing, deploy
   orchestration and package generation are tested in `@meddleware/token-issuance-client`.
 - **Mocked-RPC UI e2e (Playwright, `npm run test:e2e`):** wallet/form/publish flow against the
   stub Sui client + mock wallet in [src/e2e.ts](src/e2e.ts) (`@meddleware/wallet-adapter/testing`). Specs live in

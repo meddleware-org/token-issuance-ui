@@ -16,6 +16,14 @@ export async function identity(page: Page): Promise<void> {
   await page.getByLabel('Package name').waitFor()
 }
 
+/**
+ * Back at the top of the page. A step's own scrolling (the button that opens it sits far down the page) can still be settling, which leaves
+ * a sliver of the sticky-header-covered tab list showing when the sweep measures touch targets; a person reads a new step from its top.
+ */
+async function atTop(page: Page): Promise<void> {
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }))
+}
+
 async function fillIdentity(page: Page): Promise<void> {
   await page.getByLabel('Package name').fill('my_token')
   await page.getByLabel('Module name').fill('mytoken')
@@ -49,6 +57,7 @@ export async function settings(page: Page): Promise<void> {
   await token(page)
   await fillToken(page)
   await page.getByLabel('Initial supply').waitFor()
+  await atTop(page)
 }
 
 /** The terms dialog that stands between the settings and the review. */
@@ -63,6 +72,7 @@ export async function review(page: Page): Promise<void> {
   await terms(page)
   await page.getByRole('button', { name: /I understand — continue/ }).click()
   await page.getByRole('heading', { name: /Review — deploying to testnet/ }).waitFor()
+  await atTop(page)
 }
 
 /** A deployed coin. */

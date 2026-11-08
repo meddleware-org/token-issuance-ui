@@ -4,7 +4,7 @@
 import { expect, test } from '@playwright/test'
 import { connectMockWallet } from '@meddleware/frontend-config/wallet'
 import { E2E_PACKAGE_ID } from '../src/e2e-data.js'
-import { disconnected, done, identity } from './open.js'
+import { disconnected, done, identity, review } from './open.js'
 
 test('mounts with its landmarks and asks for a wallet first, without an uncaught error', async ({ page }) => {
   const errors: string[] = []
@@ -13,7 +13,7 @@ test('mounts with its landmarks and asks for a wallet first, without an uncaught
   await expect(page.getByRole('banner')).toBeVisible()
   await expect(page.getByRole('main')).toBeVisible()
   await expect(page.getByRole('contentinfo')).toBeVisible()
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Create your own Sui coin')
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Token Issuance')
   await expect(page.getByText('Connect a Sui wallet to deploy your token.')).toBeVisible()
   expect(errors).toEqual([])
 })
@@ -54,6 +54,19 @@ test('validates the identity step before allowing Next', async ({ page }) => {
   await page.getByLabel('Module name').fill('mytoken')
   await page.getByLabel('Module name').blur()
   await expect(next).toBeEnabled()
+})
+
+test('the review says what is permanent, what the policies allow, the exact fee and who receives it', async ({ page }) => {
+  await review(page)
+  const card = page.getByRole('main')
+  await expect(card.getByText('Permanent once published', { exact: true })).toBeVisible()
+  await expect(card.getByText('The name, description, icon can still be changed later by whoever holds the MetadataCap.')).toBeVisible()
+  await expect(card.getByText(/The MetadataCap goes to the recipient\. Whoever holds it can change the name, description and icon/)).toBeVisible()
+  await expect(card.getByText(/The TreasuryCap goes to the recipient/)).toBeVisible()
+  await expect(card.getByText(/The UpgradeCap is burned when the package is published/)).toBeVisible()
+  await expect(card.getByText(/one-off fee of 2 SUI to the Meddleware platform treasury/)).toBeVisible()
+  await expect(card.getByText('0xe2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2')).toBeVisible()
+  await expect(card.getByText(/operator/i)).toHaveCount(0)
 })
 
 test('walks the wizard to a (mocked) successful deploy', async ({ page }) => {
