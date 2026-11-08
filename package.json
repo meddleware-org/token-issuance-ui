@@ -55,7 +55,7 @@
   },
   "dependencies": {
     "@meddleware/design-tokens": "^0.1.13",
-    "@meddleware/token-issuance-client": "^0.0.15",
+    "@meddleware/token-issuance-client": "^0.0.16",
     "@meddleware/ui": "^0.1.40",
     "@meddleware/walrus-storage-client": "^0.0.34",
     "@meddleware/walrus-storage-kit": "^0.1.39",
