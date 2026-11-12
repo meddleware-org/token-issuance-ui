@@ -20,6 +20,13 @@ describe('the standalone shell', () => {
     expect(links).toContain('https://meddleware.dev/sui/onchain/token-issuance/overview')
   })
 
+  it('shows the company mark beside the tool name in the header, as decoration', () => {
+    const mark = mount(App).find('header svg.mw-brand-mark')
+    expect(mark.exists()).toBe(true)
+    expect(mark.attributes('aria-hidden')).toBe('true')
+    expect(mark.find('path').attributes('fill')).toBe('currentColor')
+  })
+
   it('gives the network select a visible label of its own, inside the header', () => {
     const w = mount(App)
     const label = w.get('header label.network')

@@ -147,7 +147,7 @@ async function main() {
   const coinType = await page.locator('dt', { hasText: 'Coin type' }).locator('xpath=following-sibling::dd[1]').locator('.ca-value').innerText()
   console.log('UI result coinType:', coinType)
 
-  // Verify the in-browser source-package download (the client's ./package zip + SPDX licence fetch).
+  // Verify the in-browser source-package download (the client's ./package zip + the vendored licence text).
   const [download] = await Promise.all([
     page.waitForEvent('download', { timeout: 30000 }),
     page.getByRole('button', { name: /Download source package/ }).click(),

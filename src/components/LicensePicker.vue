@@ -3,7 +3,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { UiButton, UiCodeBlock, UiDialog, UiFieldHint, UiFormField, UiLiveStatus, UiNotice, UiSelect } from '@meddleware/ui'
 import { errorMessage, safeHref } from '@meddleware/web-utils'
-import { fetchLicenseList, fetchLicenseText, NO_LICENSE, type SpdxLicense } from '../lib/licenses.js'
+import { getLicenseText, loadLicenseCatalogue, NO_LICENSE, type SpdxLicense } from '../lib/licenses.js'
 
 const model = defineModel<string>({ required: true })
 const emit = defineEmits<{ (e: 'name', name: string): void }>()
@@ -31,7 +31,7 @@ const selectModel = computed({
 
 onMounted(async () => {
   try {
-    const catalogue = await fetchLicenseList()
+    const catalogue = await loadLicenseCatalogue()
     popular.value = catalogue.popular
     all.value = catalogue.all
     announceName(model.value)
@@ -53,7 +53,7 @@ async function show(): Promise<void> {
   if (model.value !== NO_LICENSE.id) {
     textLoading.value = true
     try {
-      text.value = await fetchLicenseText(model.value)
+      text.value = await getLicenseText(model.value)
     } catch (e) {
       textError.value = errorMessage(e)
     } finally {
@@ -94,7 +94,7 @@ async function show(): Promise<void> {
       </span>
     </template>
   </UiFormField>
-  <UiLiveStatus id="license-load-status" label="Licenses" :message="loading ? 'Loading licenses from SPDX…' : ''" />
+  <UiLiveStatus id="license-load-status" label="Licenses" :message="loading ? 'Loading licenses…' : ''" />
   <UiNotice v-if="error" type="error" :message="`Couldn't load the license list: ${error}`" />
 
   <UiDialog v-model:open="open" :title="currentLicenseName" width="min(680px, 92vw)">

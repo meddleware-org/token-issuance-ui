@@ -6,7 +6,7 @@ import { errorMessage, suiExplorerUrl, triggerDownload } from '@meddleware/web-u
 import { generatePackageZip } from '@meddleware/token-issuance-client/package'
 import type { PublishResult, TokenConfig } from '@meddleware/token-issuance-client'
 import { explorerNetworkOf } from '../config.js'
-import { fetchLicenseText } from '../lib/licenses.js'
+import { getLicenseText } from '../lib/licenses.js'
 import { policyStatements } from '../lib/policies.js'
 import GithubPush from './GithubPush.vue'
 
@@ -22,7 +22,7 @@ async function downloadPackage(): Promise<void> {
   downloading.value = true
   downloadError.value = null
   try {
-    const licenseText = await fetchLicenseText(props.config.license)
+    const licenseText = await getLicenseText(props.config.license)
     const zip = generatePackageZip({ config: props.config, licenseText: licenseText ?? undefined, result: props.result })
     triggerDownload(new Blob([zip as BlobPart], { type: 'application/zip' }), `${props.config.packageName}.zip`)
   } catch (e) {

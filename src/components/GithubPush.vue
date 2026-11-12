@@ -7,7 +7,7 @@ import { errorMessage, safeHref } from '@meddleware/web-utils'
 import { buildPackageFiles } from '@meddleware/token-issuance-client/package'
 import type { PublishResult, TokenConfig } from '@meddleware/token-issuance-client'
 import { createRepoAndPush } from '../lib/github.js'
-import { fetchLicenseText } from '../lib/licenses.js'
+import { getLicenseText } from '../lib/licenses.js'
 
 const props = defineProps<{ config: TokenConfig; result: PublishResult }>()
 
@@ -24,7 +24,7 @@ async function push(): Promise<void> {
   error.value = null
   doneUrl.value = null
   try {
-    const licenseText = await fetchLicenseText(props.config.license)
+    const licenseText = await getLicenseText(props.config.license)
     const files = buildPackageFiles({ config: props.config, licenseText: licenseText ?? undefined, result: props.result })
     const res = await createRepoAndPush({
       token: token.value.trim(),

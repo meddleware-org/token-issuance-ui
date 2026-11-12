@@ -3,6 +3,16 @@
 All notable changes to `@meddleware/token-issuance-ui` are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.0.47] - 2026-11-12
+
+### Changed
+
+- The company mark and the favicon set come from the shared brand plugin (`@meddleware/frontend-config` 0.0.8, `name: 'Token Issuance'`; `@meddleware/ui` 0.1.42 shows the mark beside the title in the shell header). The blue "S" stand-in icons (`public/favicon.svg`, `public/favicon.ico`) and the icon links in `index.html` are removed; the build now emits the favicon, Apple touch icon, 192/512 icons and a web manifest.
+- The social card (`public/og-image.png`) is redrawn in the design tokens' dark palette with the system font stack and the company mark beside the headline (the old card used an off-palette blue); `npm run gen:og-image` reads the colours from `@meddleware/design-tokens`.
+- The licence picker and the downloaded or pushed source package no longer fetch licence text from `raw.githubusercontent.com`: the texts of the 27 licences offered (the previous list had every non-deprecated SPDX licence) are vendored in `src/lib/license-texts.json`, generated from the CC0 `spdx-license-list` package by `npm run gen:licenses` and checked against the generator by a test. The page now calls no origin for a licence; `api.github.com` is called only when the user explicitly pushes the package to their own GitHub. `fetchLicenseList` / `fetchLicenseText` are replaced by `loadLicenseCatalogue` / `getLicenseText` (internal module).
+- `tests/third-party.test.ts` (run on the built `dist/` in CI) fails if the sources or the build name a web font, CDN, tracker or any host other than the Sui RPC, the Walrus relay, aggregator and publisher and, for the explicit push, `api.github.com`; `DO_NOT_TRACK=1` is set in every workflow.
+- Takes `@meddleware/ui` ^0.1.42, `@meddleware/frontend-config` ^0.0.8 and `@meddleware/web-utils` ^0.0.4; adds the dev dependency `spdx-license-list` ^6.12.0.
+
 ## [0.0.46] - 2026-11-07
 
 ### Fixed

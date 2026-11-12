@@ -1,12 +1,6 @@
-// Dynamic license catalogue, sourced from the SPDX license-list-data archive at
-// runtime (CORS-enabled, `access-control-allow-origin: *`). No registry is
-// bundled or maintained here. License choice only affects the downloadable
-// package (LICENSE file + Move.toml/README/source header), never the on-chain
-// bytecode.
-
-const SPDX_BASE = 'https://raw.githubusercontent.com/spdx/license-list-data/main'
-const LIST_URL = `${SPDX_BASE}/json/licenses.json`
-const textUrl = (id: string) => `${SPDX_BASE}/text/${encodeURIComponent(id)}.txt`
+// The licence catalogue, vendored in the app: the SPDX texts come from the `spdx-license-list` package (CC0-1.0) through
+// `scripts/gen-licenses.mjs` into `license-texts.json`, so choosing or reading a licence makes no request to any other origin. Licence
+// choice only affects the downloadable package (LICENSE file + Move.toml/README/source header), never the on-chain bytecode.
 
 export interface SpdxLicense {
   id: string
@@ -15,7 +9,7 @@ export interface SpdxLicense {
   deprecated: boolean
 }
 
-/** The "no license" / proprietary choice; never fetched. */
+/** The "no license" / proprietary choice; it has no text. */
 export const NO_LICENSE: SpdxLicense = {
   id: 'NONE',
   name: 'None / proprietary (all rights reserved)',
@@ -42,91 +36,46 @@ export const POPULAR_LICENSE_IDS = [
 
 export const DEFAULT_LICENSE_ID = '0BSD'
 
-import { fetchWithTimeout, readBoundedJson, readBoundedText } from '@meddleware/web-utils'
-
-/** Largest SPDX list accepted (the real list is ~120 KiB). */
-export const MAX_LICENSE_LIST_BYTES = 2 * 1024 * 1024
-/** Largest single licence text accepted (the longest SPDX texts are tens of KiB). */
-export const MAX_LICENSE_TEXT_BYTES = 256 * 1024
-/** Time allowed for one licence request, headers and body. */
-export const LICENSE_TIMEOUT_MS = 15_000
-
-type Fetcher = typeof fetch
-
 /** SPDX ids are limited to these characters; anything else is rejected. */
 const LICENSE_ID_RE = /^[A-Za-z0-9.\-+]+$/
 
-interface RawLicense {
-  licenseId: string
-  name: string
-  isOsiApproved?: boolean
-  isDeprecatedLicenseId?: boolean
-}
-
-let listCache: SpdxLicense[] | null = null
-const textCache = new Map<string, string>()
+type Texts = Record<string, { name: string; osiApproved: boolean; text: string }>
 
 export interface LicenseCatalogue {
   /** Popular licenses first (in POPULAR order), each also present in `all`. */
   popular: SpdxLicense[]
-  /** All non-deprecated licenses, alphabetical by id, prefixed with NO_LICENSE. */
+  /** Every offered license, alphabetical by id, prefixed with NO_LICENSE. */
   all: SpdxLicense[]
 }
 
-/** Fetch and cache the SPDX license list. */
-export async function fetchLicenseList(fetcher: Fetcher = fetch): Promise<LicenseCatalogue> {
-  if (!listCache) {
-    const res = await fetchWithTimeout(fetcher, LIST_URL, {}, LICENSE_TIMEOUT_MS, 'The SPDX license list request')
-    if (!res.ok) throw new Error(`failed to load SPDX license list (${res.status})`)
-    const json = (await readBoundedJson(res, MAX_LICENSE_LIST_BYTES, 'The SPDX license list')) as { licenses?: RawLicense[] }
-    if (!json || !Array.isArray(json.licenses)) {
-      throw new Error('unexpected SPDX license list format')
-    }
-    listCache = json.licenses
-      .filter(
-        (l) =>
-          l &&
-          typeof l.licenseId === 'string' &&
-          LICENSE_ID_RE.test(l.licenseId) &&
-          typeof l.name === 'string' &&
-          !l.isDeprecatedLicenseId,
-      )
-      .map((l) => ({
-        id: l.licenseId,
-        name: l.name,
-        osiApproved: Boolean(l.isOsiApproved),
-        deprecated: Boolean(l.isDeprecatedLicenseId),
-      }))
-      .sort((a, b) => a.id.localeCompare(b.id))
-  }
-  const byId = new Map(listCache.map((l) => [l.id, l]))
-  const popular = POPULAR_LICENSE_IDS.map((id) => byId.get(id)).filter((l): l is SpdxLicense =>
-    Boolean(l),
-  )
-  return { popular, all: [NO_LICENSE, ...listCache] }
+let textsPromise: Promise<Texts> | null = null
+
+// The texts are a separate chunk (a few hundred KiB), loaded the first time a licence is listed or read.
+function loadTexts(): Promise<Texts> {
+  textsPromise ??= import('./license-texts.json').then((m) => (m.default ?? m) as Texts)
+  return textsPromise
+}
+
+/** The licences the picker offers. */
+export async function loadLicenseCatalogue(): Promise<LicenseCatalogue> {
+  const texts = await loadTexts()
+  const list: SpdxLicense[] = Object.entries(texts)
+    .map(([id, l]) => ({ id, name: l.name, osiApproved: l.osiApproved, deprecated: false }))
+    .sort((a, b) => a.id.localeCompare(b.id))
+  const byId = new Map(list.map((l) => [l.id, l]))
+  const popular = POPULAR_LICENSE_IDS.map((id) => byId.get(id)).filter((l): l is SpdxLicense => Boolean(l))
+  return { popular, all: [NO_LICENSE, ...list] }
 }
 
 /**
- * Fetch and cache the full license text for an id. Returns null for the
- * proprietary/no-license choice (no LICENSE file should be written).
+ * The full text of an offered licence. Returns null for the proprietary/no-license choice (no LICENSE file should be written) and
+ * throws for an id the app does not carry.
  */
-export async function fetchLicenseText(
-  id: string,
-  fetcher: Fetcher = fetch,
-): Promise<string | null> {
+export async function getLicenseText(id: string): Promise<string | null> {
   const key = id.trim()
   if (!key || ['none', 'unlicensed', 'noassertion'].includes(key.toLowerCase())) return null
   if (!LICENSE_ID_RE.test(key)) throw new Error(`invalid license id "${key}"`)
-  if (textCache.has(key)) return textCache.get(key) as string
-  const res = await fetchWithTimeout(fetcher, textUrl(key), {}, LICENSE_TIMEOUT_MS, `The "${key}" license text request`)
-  if (!res.ok) throw new Error(`failed to load license text for "${key}" (${res.status})`)
-  const text = await readBoundedText(res, MAX_LICENSE_TEXT_BYTES, `The "${key}" license text`)
-  textCache.set(key, text)
-  return text
-}
-
-/** Test seam: reset caches. */
-export function __resetLicenseCaches(): void {
-  listCache = null
-  textCache.clear()
+  const texts = await loadTexts()
+  if (!Object.hasOwn(texts, key)) throw new Error(`no text for license "${key}"`)
+  return texts[key]!.text
 }

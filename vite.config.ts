@@ -48,6 +48,7 @@ export default defineConfig((configEnv) => {
   return meddlewareApp({
     plugins: [vue()],
     theme: 'system',
+    name: 'Token Issuance',
     config: {
       base: '/',
       optimizeDeps: { exclude: ['@mysten/move-bytecode-template'] },

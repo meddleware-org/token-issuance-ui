@@ -21,7 +21,9 @@ this app is its UI.
    supply/metadata policies.
 4. The same inputs generate a full, downloadable source package that matches the CLI generator's
    output, so the on-chain package is source-verifiable.
-5. Licences are fetched live from SPDX ([src/lib/licenses.ts](src/lib/licenses.ts)); an optional
+5. The licence texts are vendored in the app ([src/lib/license-texts.json](src/lib/license-texts.json), generated from the CC0
+   `spdx-license-list` package by `npm run gen:licenses`; [src/lib/licenses.ts](src/lib/licenses.ts) reads them, so a licence is
+   never requested from another origin); an optional
    icon upload goes to Walrus (`@meddleware/walrus-storage-client/flow`, from
    [src/components/IconPicker.vue](src/components/IconPicker.vue)); and an optional GitHub push uses
    the user's own token ([src/lib/github.ts](src/lib/github.ts)).
@@ -29,8 +31,10 @@ this app is its UI.
 ## Security & trust model
 
 - **No backend, no key custody.** The only network calls are to the Sui RPC, the
-  user's wallet, SPDX (`raw.githubusercontent.com`), the Walrus relay/aggregator
-  (only if the icon uploader is used), and GitHub (only if the push is used).
+  user's wallet, the Walrus relay/aggregator (only if the icon uploader is used), and
+  `api.github.com` (only when the user explicitly chooses "push to GitHub", with their own token).
+  No web fonts, CDN, analytics or other third-party origin; the licence texts are vendored, and
+  `tests/third-party.test.ts` fails if the sources or the production build name any other host.
 - **No endorsement.** The tool is neutral; it does not vet or endorse created
   tokens or their creators. This is stated in the review, result, and footer UI.
 - **Defence in depth.** User input is validated at the form
@@ -134,7 +138,7 @@ The production artefact is the container image built from the [Dockerfile](Docke
 above; the Dockerfile header lists them.
 
 - SEO: [index.html](index.html) has env-aware canonical/OG/Twitter tags, a real `public/og-image.png` (regenerate with
-  `npm run gen:og-image`; a developer tool, not shipped), `public/robots.txt` and `public/sitemap.xml`.
+  `npm run gen:og-image`, which draws it in the design tokens' dark palette with the company mark; a developer tool, not shipped), `public/robots.txt` and `public/sitemap.xml`.
 - Before going live, confirm the treasury vars are set (the build enforces this for testnet; mainnet stays closed until
   `VITE_FEE_TREASURY_MAINNET` is set) and point the subdomain at the deployment.
 

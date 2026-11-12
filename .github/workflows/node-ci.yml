@@ -8,6 +8,9 @@ on:
   # The release workflow runs the same checks on the tagged commit.
   workflow_call:
 
+env:
+  DO_NOT_TRACK: "1"
+
 permissions:
   contents: read
 
@@ -56,6 +59,11 @@ jobs:
             echo "::error::a production build with VITE_E2E=1 succeeded: the e2e harness could be shipped"
             exit 1
           fi
+
+      - name: The build calls no third-party origin and has the brand icon set
+        run: npx vitest run tests/third-party.test.ts
+        env:
+          REQUIRE_DIST: '1'
 
       - name: Inline scripts are covered by the CSP
         run: npm run check:csp
