@@ -3,6 +3,13 @@
 All notable changes to `@meddleware/token-issuance-ui` are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.0.48] - 2026-11-18
+
+### Fixed
+
+- The help text beside the form fields is drawn in the top layer, wraps inside its own background and moves to the side where it fits on screen (`@meddleware/ui` 0.1.44).
+- Takes `@meddleware/ui` ^0.1.44 and `@meddleware/frontend-config` ^0.0.15.
+
 ## [0.0.47] - 2026-11-12
 
 ### Changed
