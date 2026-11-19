@@ -5,6 +5,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+- **Security:** the image is built on static-server 0.1.13 (Go 1.26.11), which fixes CVE-2026-97054 (HIGH, `net/http`) found in
+  the 0.1.12 server by the release scan.
 - Shared packages for the storage rule (D134): nothing is stored before the visitor acts (`@meddleware/ui` remembers the colour
   mode only when asked, `wallet-adapter` keeps a chosen network for the tab only, expired upload records are swept);
   `e2e/storage.spec.ts` checks it on every build. Tests follow walrus-storage-kit's plainer pass-unavailable message.
