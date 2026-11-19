@@ -3,6 +3,12 @@
 All notable changes to `@meddleware/token-issuance-ui` are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+- Shared packages for the storage rule (D134): nothing is stored before the visitor acts (`@meddleware/ui` remembers the colour
+  mode only when asked, `wallet-adapter` keeps a chosen network for the tab only, expired upload records are swept);
+  `e2e/storage.spec.ts` checks it on every build. Tests follow walrus-storage-kit's plainer pass-unavailable message.
+
 ## [0.0.48] - 2026-11-18
 
 ### Fixed

@@ -58,7 +58,7 @@ describe('IconUploadPanel with a gated operator relay', () => {
 
     const cta = w.find('.wru-cta')
     expect(cta.exists()).toBe(true)
-    expect(cta.text()).toContain('could not be read from the chain')
+    expect(cta.text()).toContain('This pass is not available right now')
     const buy = cta.find('button')
     expect(buy.attributes('disabled')).toBeDefined()
     await buy.trigger('click')

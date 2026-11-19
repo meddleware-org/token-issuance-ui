@@ -47,9 +47,9 @@ describe('the access gate configuration', () => {
   it('does not open the wallet when the price cannot be read', async () => {
     const gate = useAccessGate({ network: 'testnet', gate: parseAccessGate('testnet', { VITE_ACCESS_GATE_ID_TESTNET: '0xgate' }), getClient: failingClient })
     const executor = { signAndExecute: vi.fn(), waitForTransaction: vi.fn() }
-    await expect(gate.purchase(executor, '0x1')).rejects.toThrow(/Could not read the pass price/)
+    await expect(gate.purchase(executor, '0x1')).rejects.toThrow(/This pass is not available right now/)
     expect(executor.signAndExecute).not.toHaveBeenCalled()
-    expect(gate.purchaseError.value).toMatch(/Could not read the pass price/)
+    expect(gate.purchaseError.value).toMatch(/This pass is not available right now/)
   })
 })
 
