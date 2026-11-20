@@ -35,7 +35,7 @@ function onClose(returnValue: string): void {
         Do not use this tool to create tokens that misrepresent a project, impersonate another asset, or facilitate fraud.
       </li>
       <li>
-        On-chain transactions are irreversible, and so are the fee and the gas they pay. Some choices in your configuration can never be
+        On-chain transactions are irreversible, and so are the fees they pay, the network fee included. Some choices in your configuration can never be
         undone either; the next screen lists them. Review it carefully before confirming.
       </li>
       <li>

@@ -256,7 +256,7 @@ async function upload(): Promise<void> {
   <UiNotice v-if="showFreeRelayTip">Tip: select the public relay above to avoid the relay fee.</UiNotice>
 
   <UiNotice>
-    Max {{ maxSizeLabel }} · PNG/JPEG/WebP/SVG. Requires <strong>WAL</strong> (storage) and <strong>SUI</strong> (gas + relay fee) in your
+    Max {{ maxSizeLabel }} · PNG/JPEG/WebP/SVG. Requires <strong>WAL</strong> (storage) and <strong>SUI</strong> (network fee + relay fee) in your
     wallet; two approvals. Stored for {{ storedFor }}; its owner can extend the storage before then.
   </UiNotice>
   <UiLiveStatus label="Upload progress" :message="status" />
