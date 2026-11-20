@@ -63,9 +63,9 @@ npm run docs         # TypeDoc API reference -> docs/api/
 
 ## Deployment configuration
 
-Committed defaults live in [.env.production](.env.production) (build) and
-[.env.development](.env.development) (dev server). Override per environment in the
-host dashboard. See [.env.example](.env.example) for the full list.
+Committed defaults live in [.env.production](.env.production) (build). The dev server uses the
+defaults in [`src/config.ts`](src/config.ts); set a variable in `.env.local` (not committed) to
+override one. See [.env.example](.env.example) for the full list.
 
 | Variable | Purpose | Default |
 | --- | --- | --- |
