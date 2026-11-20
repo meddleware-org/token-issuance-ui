@@ -254,3 +254,7 @@ Three distinct categories — do not collapse them (repo convention):
 
 TSDoc on every exported symbol in `src/lib`, `src/composables`, and `src/config.ts`;
 `npm run docs` renders a TypeDoc site to `docs/api/` (config: [typedoc.json](typedoc.json)).
+
+## Interoperability
+
+- [docs/INTEROP.md](docs/INTEROP.md): the standards this project speaks, what is planned, where to extend it, and what proves each claim.

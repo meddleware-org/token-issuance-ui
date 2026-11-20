@@ -232,3 +232,7 @@ The human backstop for anything the harness does not assert (run once against te
 
 `npm run docs` generates a TypeDoc site under `docs/api/` covering the deployment
 library (`src/lib`), composables, and config. See [typedoc.json](typedoc.json).
+
+## Open standards
+
+What this project speaks, what is planned and where you can extend it: [docs/INTEROP.md](docs/INTEROP.md).
