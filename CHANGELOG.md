@@ -3,7 +3,7 @@
 All notable changes to `@meddleware/token-issuance-ui` are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.0.50] - 2026-11-20
 
 - Wording (copy standard, 2026-11-20): the network fee, not gas, in the page description, the terms and the icon upload cost.
 - CI: `HOME=/root` is set on the browser-test command only, not the whole job, so the runner no longer warns that it cannot read
