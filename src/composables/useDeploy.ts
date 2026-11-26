@@ -1,3 +1,5 @@
+// The deploy flow's state machine for the wizard: one publish (first signature), then the finalize step (second signature), with every failure routed to a phase that
+// never offers a second publish once the first executed (that would create a second coin and charge the fee again).
 import { ref } from 'vue'
 import {
   DeployIncompleteError,
@@ -28,6 +30,7 @@ export type DeployPhase = 'idle' | 'deploying' | 'failed' | 'incomplete' | 'publ
 
 /** The deploy flow's state machine, with the wallet executor injectable for tests. */
 export function useDeploy(executorFor: (network: TokenNetwork) => Promise<Executor> = buildDeployExecutor) {
+  // The flow's state: where it stands, the running step, the last error, the result, what is left to finish and the publish transaction.
   const phase = ref<DeployPhase>('idle')
   const step = ref<DeployStep | null>(null)
   const error = ref<string | null>(null)
@@ -39,6 +42,7 @@ export function useDeploy(executorFor: (network: TokenNetwork) => Promise<Execut
   /** Route a failure: anything after the publish executed never goes back to a fresh deploy. */
   function onFailure(e: unknown): void {
     error.value = errorMessage(e)
+    // The publish executed; what is left of the flow decides the phase.
     if (e instanceof DeployUnconfirmedError) {
       result.value = e.result
       pending.value = null
@@ -57,11 +61,13 @@ export function useDeploy(executorFor: (network: TokenNetwork) => Promise<Execut
     }
   }
 
+  /** deploy(args): publish the coin; any failure is routed by onFailure. */
   async function deploy(args: Omit<DeployArgs, 'executor' | 'onStep'>): Promise<void> {
     phase.value = 'deploying'
     step.value = null
     error.value = null
     try {
+      // Run the deploy with the wallet executor, reporting each step.
       result.value = await deployToken({
         ...args,
         executor: await executorFor(args.network),
@@ -92,6 +98,7 @@ export function useDeploy(executorFor: (network: TokenNetwork) => Promise<Execut
     }
   }
 
+  /** reset(): back to idle, forgetting everything. */
   function reset(): void {
     phase.value = 'idle'
     step.value = null
@@ -101,5 +108,6 @@ export function useDeploy(executorFor: (network: TokenNetwork) => Promise<Execut
     publishDigest.value = null
   }
 
+  // What the view binds to.
   return { phase, step, error, result, pending, publishDigest, deploy, finish, reset }
 }

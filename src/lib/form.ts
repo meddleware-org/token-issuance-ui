@@ -1,6 +1,7 @@
 // The reactive form model (all text inputs are strings) and its conversion into
 // the strongly-typed TokenConfig used by the deploy + generate pipelines.
 
+// The typed configuration the deploy and generate pipelines use, and the helpers this module converts with.
 import type { MetadataPolicy, PackagePolicy, SupplyPolicy, TokenConfig } from '@meddleware/token-issuance-client'
 import { deriveStructName, parseSupply } from './validation.js'
 import { DEFAULT_LICENSE_ID } from './licenses.js'
@@ -37,12 +38,15 @@ export function emptyForm(): FormModel {
     name: '',
     description: '',
     iconUrl: '',
+    // Nine decimals is the Sui convention.
     decimals: '9',
     initialSupply: '',
+    // The defaults for the three policies: mintable supply, updatable metadata, immutable package.
     supplyPolicy: 'mintable',
     metadataPolicy: 'updatable',
     packagePolicy: 'immutable',
     recipient: '',
+    // The default licence for the source package.
     license: DEFAULT_LICENSE_ID,
     licenseName: '',
     packageDescription: '',
@@ -52,8 +56,10 @@ export function emptyForm(): FormModel {
 
 /** Convert the form into a TokenConfig. `recipient` empty means the connected wallet. */
 export function toTokenConfig(form: FormModel): TokenConfig {
+  // The struct name is derived from the module name, so the two cannot disagree.
   const structName = deriveStructName(form.moduleName)
   return {
+    // Text fields are trimmed.
     packageName: form.packageName.trim(),
     moduleName: form.moduleName.trim(),
     structName,
@@ -61,6 +67,7 @@ export function toTokenConfig(form: FormModel): TokenConfig {
     name: form.name.trim(),
     description: form.description.trim(),
     iconUrl: form.iconUrl.trim(),
+    // Numbers and big integers are parsed here, once, from the strings the inputs hold; an unparsable supply becomes zero (validation has already refused it).
     decimals: Number(form.decimals),
     initialSupply: parseSupply(form.initialSupply) ?? 0n,
     supplyPolicy: form.supplyPolicy,
@@ -68,6 +75,7 @@ export function toTokenConfig(form: FormModel): TokenConfig {
     packagePolicy: form.packagePolicy,
     recipient: form.recipient.trim(),
     license: form.license,
+    // Defaults for the optional descriptive fields.
     licenseName: form.licenseName || form.license,
     packageDescription: form.packageDescription.trim() || `Official ${form.symbol} token.`,
     projectName: form.projectName.trim() || form.name,

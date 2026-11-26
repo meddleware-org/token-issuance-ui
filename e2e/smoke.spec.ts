@@ -6,6 +6,7 @@ import { connectMockWallet } from '@meddleware/frontend-config/wallet'
 import { E2E_PACKAGE_ID } from '../src/e2e-data.js'
 import { disconnected, done, identity, review } from './open.js'
 
+// Mounts with its landmarks and asks for a wallet first, without an uncaught error.
 test('mounts with its landmarks and asks for a wallet first, without an uncaught error', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', (e) => errors.push(e.message))
@@ -18,6 +19,7 @@ test('mounts with its landmarks and asks for a wallet first, without an uncaught
   expect(errors).toEqual([])
 })
 
+// Connects and disconnects the wallet.
 test('connects and disconnects the wallet', async ({ page }) => {
   await identity(page)
   await expect(page.getByLabel('Package name')).toBeVisible()
@@ -26,6 +28,7 @@ test('connects and disconnects the wallet', async ({ page }) => {
   await expect(page.getByLabel('Package name')).toBeHidden()
 })
 
+// Says so when no wallet is registered.
 test('says so when no wallet is registered', async ({ page }) => {
   await disconnected(page)
   await page.evaluate(() => (window as unknown as { __unregisterMockWallet: () => void }).__unregisterMockWallet())
@@ -33,6 +36,7 @@ test('says so when no wallet is registered', async ({ page }) => {
   await expect(page.getByRole('dialog').getByText('No Sui wallet detected.')).toBeVisible()
 })
 
+// Uses the network chosen in the header.
 test('uses the network chosen in the header', async ({ page }) => {
   await disconnected(page)
   await page.getByRole('combobox', { name: 'Network' }).selectOption('mainnet')
@@ -40,6 +44,7 @@ test('uses the network chosen in the header', async ({ page }) => {
   await expect(page.getByText(/Deploy your own Sui coin directly from your browser \(mainnet\)/)).toBeVisible()
 })
 
+// Validates the identity step before allowing Next.
 test('validates the identity step before allowing Next', async ({ page }) => {
   await identity(page)
   const next = page.getByRole('button', { name: 'Next', exact: true })
@@ -56,6 +61,7 @@ test('validates the identity step before allowing Next', async ({ page }) => {
   await expect(next).toBeEnabled()
 })
 
+// The review says what is permanent, what the policies allow, the exact fee and who receives it.
 test('the review says what is permanent, what the policies allow, the exact fee and who receives it', async ({ page }) => {
   await review(page)
   const card = page.getByRole('main')

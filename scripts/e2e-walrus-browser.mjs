@@ -29,6 +29,7 @@ const RPC = process.env.E2E_RPC || 'https://fullnode.testnet.sui.io:443'
 const RELAY = process.env.E2E_RELAY || 'public'
 const UPLOAD_TIMEOUT = Number(process.env.E2E_UPLOAD_TIMEOUT || '180000')
 
+/** Report the failure and stop with status 1. */
 function fail(m) {
   console.error('WALRUS BROWSER E2E FAIL:', m)
   process.exit(1)
@@ -51,6 +52,7 @@ function writeIcon() {
   return path
 }
 
+/** Drive the icon upload on testnet and verify the aggregator serves the exact image. */
 async function main() {
   const { balance } = await client.getBalance({ owner: address })
   console.log('signer:', address, 'SUI balance:', balance.balance, 'MIST', 'relay:', RELAY)

@@ -2,6 +2,7 @@
 // Standalone shell for the token issuance SPA: the shared tool shell (header, colour mode, footer) with the network and the wallet in its
 // header, then the tool view and the disclaimer. The core UI lives in TokenIssuanceView.vue (also exported for inline embedding in the
 // dashboard, which supplies its own shell). There is no shared network selector component yet, so the select is local.
+// Vue, the shared tool shell and parts, the explorer link helper, the wallet modal and network state, and this app's own modules.
 import { computed } from 'vue'
 import { AppToolShell, CopyableAddress, ExplorerLink, UiButton, UiSelect } from '@meddleware/ui'
 import { suiExplorerUrl } from '@meddleware/web-utils'
@@ -14,9 +15,12 @@ const DOCS_URL = import.meta.env.VITE_DOCS_URL || undefined
 // The developer site documents the coin template under /sui/onchain, not under a tool page of its own.
 const DEV_URL = import.meta.env.VITE_DEV_URL || 'https://meddleware.dev/sui/onchain/token-issuance/overview'
 
+// The shared wallet and network state.
 const { account, disconnect } = useWallet()
+// The shared network state.
 const { network, setNetwork, explorerNetwork } = useNetwork()
 
+// The network select reads and writes the shared network.
 const networkModel = computed({
   get: () => network.value,
   set: (v: string) => setNetwork(v as MwNetwork),
@@ -26,23 +30,31 @@ const networkModel = computed({
 <template>
   <AppToolShell title="Token Issuance" slug="token-issuance" default-mode="system" :docs-url="DOCS_URL" :dev-url="DEV_URL">
     <template #actions>
+      <!-- The network select is local to this app (there is no shared selector component yet). -->
       <label class="network">
         Network
+        <!-- The network choices are the selectable networks. -->
         <UiSelect v-model="networkModel">
           <option v-for="n in SELECTABLE_NETWORKS" :key="n" :value="n">{{ n }}</option>
         </UiSelect>
       </label>
       <template v-if="account">
+        <!-- The connected address, copyable, with an explorer link. -->
         <CopyableAddress :address="account.address">
           <ExplorerLink :href="suiExplorerUrl('account', account.address, explorerNetwork)" :value="account.address" />
         </CopyableAddress>
+        <!-- Disconnect the wallet. -->
         <UiButton variant="ghost" @click="disconnect">Disconnect</UiButton>
       </template>
+      <!-- Without a wallet, the connect dialog. -->
       <WalletModal v-else :required-features="['sui:signTransaction']" />
     </template>
 
+    <!-- The tool itself; the dashboard embeds the same view. -->
     <TokenIssuanceView />
 
+    <!-- The disclaimer: client-side deployment, no custody, no endorsement of any token made with the tool. -->
+    <!-- The disclaimer under the tool. -->
     <aside class="disclaimer" aria-label="Disclaimer">
       <p>
         Client-side token deployment. This tool never takes custody of your token or keys. A coin's symbol and decimals are permanent once
@@ -70,6 +82,7 @@ const networkModel = computed({
   inline-size: auto;
   max-inline-size: 100%;
 }
+/* The disclaimer is muted secondary text under a rule. */
 .disclaimer {
   margin-top: var(--space-md);
   padding-top: var(--space-sm);

@@ -13,8 +13,11 @@ export const ALWAYS_PERMANENT = ['symbol', 'decimals'] as const
 export const CHANGEABLE_WITH_METADATA_CAP = ['name', 'description', 'icon'] as const
 
 /** The option label of each policy, as the form and the review show it. */
+/** Option labels for the supply choice. */
 export const SUPPLY_LABELS: Record<SupplyPolicy, string> = { mintable: 'Mintable', fixed: 'Fixed' }
+/** Option labels for the metadata choice. */
 export const METADATA_LABELS: Record<MetadataPolicy, string> = { updatable: 'Updatable', frozen: 'Frozen' }
+/** Option labels for the package-code choice. */
 export const PACKAGE_LABELS: Record<PackagePolicy, string> = { immutable: 'Immutable', upgradeable: 'Upgradeable' }
 
 /** What the supply choice does. */

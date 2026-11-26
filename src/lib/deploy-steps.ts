@@ -2,6 +2,7 @@
 import type { DeployStep } from '@meddleware/token-issuance-client/deploy'
 import type { StepperStep } from '@meddleware/ui'
 
+// The steps in the order the flow runs them, with the words shown for each.
 const ORDER: { key: DeployStep; label: string }[] = [
   { key: 'patching', label: 'Preparing the module' },
   { key: 'publishing', label: 'Publishing (sign in your wallet)' },
@@ -13,7 +14,9 @@ const ORDER: { key: DeployStep; label: string }[] = [
 
 /** The list for the flow's current `step`: every earlier step done, that one running, the rest pending (all pending before it starts). */
 export function deployStepStatuses(step: DeployStep | null): StepperStep[] {
+  // The index of the running step (none before the flow starts).
   const current = ORDER.findIndex((s) => s.key === step)
+  // Earlier steps are done, the current one is busy and the rest pending.
   return ORDER.map((s, i) => ({
     id: s.key,
     label: s.label,

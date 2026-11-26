@@ -1,3 +1,4 @@
+// The standalone shell (src/App.vue): the shared tool shell around the view, with the network and the wallet in the header and the disclaimer below.
 import { describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 
@@ -10,6 +11,7 @@ vi.mock('../src/components/TokenIssuanceView.vue', () => ({ default: { template:
 import App from '../src/App.vue'
 
 describe('the standalone shell', () => {
+  // Uses the shared tool shell: the tool name as the page heading, the tool, the disclaimer and the footer links.
   it('uses the shared tool shell: the tool name as the page heading, the tool, the disclaimer and the footer links', () => {
     const w = mount(App)
     expect(w.get('h1').text()).toBe('Token Issuance')
@@ -20,6 +22,7 @@ describe('the standalone shell', () => {
     expect(links).toContain('https://meddleware.dev/sui/onchain/token-issuance/overview')
   })
 
+  // Shows the company mark beside the tool name in the header, as decoration.
   it('shows the company mark beside the tool name in the header, as decoration', () => {
     const mark = mount(App).find('header svg.mw-brand-mark')
     expect(mark.exists()).toBe(true)
@@ -27,6 +30,7 @@ describe('the standalone shell', () => {
     expect(mark.find('path').attributes('fill')).toBe('currentColor')
   })
 
+  // Gives the network select a visible label of its own, inside the header.
   it('gives the network select a visible label of its own, inside the header', () => {
     const w = mount(App)
     const label = w.get('header label.network')

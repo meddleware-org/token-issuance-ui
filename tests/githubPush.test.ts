@@ -13,6 +13,7 @@ import GithubPush from '../src/components/GithubPush.vue'
 const config = { packageName: 'my_token', name: 'My Token', symbol: 'MTK', license: 'MIT' } as never
 const result = { packageId: '0x1' } as never
 
+/** Mount the component with its details section open. */
 async function open() {
   const w = mount(GithubPush, { props: { config, result }, attachTo: document.body })
   w.find('details').element.open = true
@@ -30,6 +31,7 @@ afterEach(() => {
 })
 
 describe('GithubPush token handling', () => {
+  // Uses a password field that browsers do not autofill.
   it('uses a password field that browsers do not autofill', async () => {
     const w = await open()
     const input = w.find('#gh-token')
@@ -38,6 +40,7 @@ describe('GithubPush token handling', () => {
     expect(input.attributes('spellcheck')).toBe('false')
   })
 
+  // Tells the user the token is never stored and which scopes to grant.
   it('tells the user the token is never stored and which scopes to grant', async () => {
     const text = (await open()).text()
     expect(text).toMatch(/never stored or logged/)
@@ -45,6 +48,7 @@ describe('GithubPush token handling', () => {
     expect(text).toMatch(/Contents/)
   })
 
+  // Clears the token after a successful push.
   it('clears the token after a successful push', async () => {
     createRepoAndPush.mockResolvedValue({ owner: 'a', repo: 'r', htmlUrl: 'https://github.com/a/r' })
     const w = await open()
@@ -56,6 +60,7 @@ describe('GithubPush token handling', () => {
     expect(w.html()).not.toContain('ghp_secret_value')
   })
 
+  // Clears the token after a failed push too, and the error never contains it.
   it('clears the token after a failed push too, and the error never contains it', async () => {
     createRepoAndPush.mockRejectedValue(new Error('GitHub: Bad credentials (401)'))
     const w = await open()
@@ -67,6 +72,7 @@ describe('GithubPush token handling', () => {
     expect(w.html()).not.toContain('ghp_secret_value')
   })
 
+  // Never writes the token to browser storage.
   it('never writes the token to browser storage', async () => {
     createRepoAndPush.mockResolvedValue({ owner: 'a', repo: 'r', htmlUrl: 'https://github.com/a/r' })
     const w = await open()

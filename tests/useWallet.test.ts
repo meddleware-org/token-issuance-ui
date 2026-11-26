@@ -6,6 +6,7 @@ import { readonly, isReadonly } from 'vue'
 // non-instance") if invoked with a Vue reactive/readonly Proxy as `this`. Plain
 // object literals (like our e2e mock) do NOT have this property, which is why the
 // bug only surfaced with actual installed wallets.
+/** A wallet whose name and icon are getters on private fields, as a real extension's are. */
 class PrivateFieldWallet {
   #name = 'Slush'
   #icon = 'data:image/svg+xml;base64,AAAA'

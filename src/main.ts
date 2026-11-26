@@ -1,3 +1,6 @@
+// Entry point of the standalone Token Issuance app: design system styles first, the template wasm, the season, the runtime configuration, and (in an end-to-end
+// build only) the mock wallet, then mount.
+// Tokens first (they define the CSS variables), then the seasons and the shared reset.
 import '@meddleware/design-tokens/tokens.css'
 import '@meddleware/design-tokens/seasons.css'
 import '@meddleware/ui/reset.css'

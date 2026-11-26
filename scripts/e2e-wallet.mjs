@@ -11,6 +11,7 @@ import { chromium } from 'playwright'
 import { Transaction } from '@mysten/sui/transactions'
 import { toBase64 } from '@mysten/sui/utils'
 
+/** The name the injected wallet registers under, which the app's connect dialog lists. */
 export const WALLET_NAME = 'Mock Test Wallet'
 
 /**

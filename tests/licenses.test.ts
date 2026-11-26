@@ -3,6 +3,7 @@ import { DEFAULT_LICENSE_ID, getLicenseText, loadLicenseCatalogue, NO_LICENSE, P
 
 // The licences are vendored (src/lib/license-texts.json): no request leaves the page for a licence list or text.
 describe('loadLicenseCatalogue', () => {
+  // Offers NONE first, then the vendored licences alphabetically, and surfaces the popular ones in order.
   it('offers NONE first, then the vendored licences alphabetically, and surfaces the popular ones in order', async () => {
     const cat = await loadLicenseCatalogue()
     expect(cat.all[0]).toBe(NO_LICENSE)
@@ -15,6 +16,7 @@ describe('loadLicenseCatalogue', () => {
     expect(cat.all.every((l) => !l.deprecated)).toBe(true)
   })
 
+  // Names each licence and marks the OSI-approved ones.
   it('names each licence and marks the OSI-approved ones', async () => {
     const { all } = await loadLicenseCatalogue()
     expect(all.find((l) => l.id === 'MIT')).toMatchObject({ name: 'MIT License', osiApproved: true })
@@ -24,6 +26,7 @@ describe('loadLicenseCatalogue', () => {
 })
 
 describe('getLicenseText', () => {
+  // Returns the vendored full text without any network request.
   it('returns the vendored full text without any network request', async () => {
     const f = vi.spyOn(globalThis, 'fetch')
     try {
@@ -37,6 +40,7 @@ describe('getLicenseText', () => {
     }
   })
 
+  // Has a text for every offered licence, ending in one newline.
   it('has a text for every offered licence, ending in one newline', async () => {
     const { all } = await loadLicenseCatalogue()
     for (const l of all.slice(1)) {
@@ -45,12 +49,14 @@ describe('getLicenseText', () => {
     }
   })
 
+  // Returns null for the proprietary choice.
   it('returns null for the proprietary choice', async () => {
     expect(await getLicenseText('NONE')).toBeNull()
     expect(await getLicenseText('')).toBeNull()
     expect(await getLicenseText('unlicensed')).toBeNull()
   })
 
+  // Rejects a malformed id and an id the app does not carry.
   it('rejects a malformed id and an id the app does not carry', async () => {
     await expect(getLicenseText('../MIT')).rejects.toThrow(/invalid license id/)
     await expect(getLicenseText('BOGUS-1.0')).rejects.toThrow(/BOGUS-1.0/)

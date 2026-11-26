@@ -11,6 +11,7 @@ export const MAX_GITHUB_RESPONSE_BYTES = 1024 * 1024
 /** Time allowed for one GitHub request, headers and body. */
 export const GITHUB_TIMEOUT_MS = 30_000
 
+/** The GitHub API origin used unless a test or deployment overrides it (over HTTPS only). */
 const DEFAULT_API_BASE = 'https://api.github.com'
 
 /**
@@ -66,6 +67,7 @@ export interface GithubRepoResult {
  */
 const SENSITIVE_FETCH = { redirect: 'error', credentials: 'omit', cache: 'no-store' } as const
 
+/** The headers every GitHub call carries; the token is sent here and nowhere else. */
 function ghHeaders(token: string): HeadersInit {
   return {
     Authorization: `Bearer ${token}`,
@@ -97,6 +99,7 @@ function encodePath(path: string): string {
     .join('/')
 }
 
+/** Throw GitHub's own error message (read within a size cap) with the HTTP status; the token is never part of it. */
 async function ghError(res: Response, fallback: string): Promise<never> {
   let message = fallback
   try {

@@ -2,6 +2,7 @@
 // `scripts/gen-licenses.mjs` into `license-texts.json`, so choosing or reading a licence makes no request to any other origin. Licence
 // choice only affects the downloadable package (LICENSE file + Move.toml/README/source header), never the on-chain bytecode.
 
+/** One licence the picker offers. */
 export interface SpdxLicense {
   id: string
   name: string
@@ -34,13 +35,16 @@ export const POPULAR_LICENSE_IDS = [
   'CC0-1.0',
 ] as const
 
+/** The licence selected for a new token package. */
 export const DEFAULT_LICENSE_ID = '0BSD'
 
 /** SPDX ids are limited to these characters; anything else is rejected. */
 const LICENSE_ID_RE = /^[A-Za-z0-9.\-+]+$/
 
+/** The vendored licence table: id to name, OSI approval and full text. */
 type Texts = Record<string, { name: string; osiApproved: boolean; text: string }>
 
+/** The licences, split into the popular ones and all of them. */
 export interface LicenseCatalogue {
   /** Popular licenses first (in POPULAR order), each also present in `all`. */
   popular: SpdxLicense[]
@@ -48,9 +52,10 @@ export interface LicenseCatalogue {
   all: SpdxLicense[]
 }
 
+/** The vendored licence table, loaded once on first use. */
 let textsPromise: Promise<Texts> | null = null
 
-// The texts are a separate chunk (a few hundred KiB), loaded the first time a licence is listed or read.
+/** Load the licence texts: a separate chunk of a few hundred KiB, fetched the first time a licence is listed or read. */
 function loadTexts(): Promise<Texts> {
   textsPromise ??= import('./license-texts.json').then((m) => (m.default ?? m) as Texts)
   return textsPromise

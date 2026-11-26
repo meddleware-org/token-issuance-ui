@@ -1,3 +1,4 @@
+// MyTokens: the coins a wallet controls are listed (read-only), a result that arrives after a newer load is dropped, and a failure says what happened.
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 
@@ -26,6 +27,7 @@ function deferred<T>() {
 beforeEach(() => listMyTokens.mockReset())
 
 describe('MyTokens', () => {
+  // Reloads when the network changes for the same account.
   it('reloads when the network changes for the same account', async () => {
     listMyTokens.mockResolvedValueOnce([token('tst')]).mockResolvedValueOnce([token('mainx')])
     const w = mount(MyTokens, { props: { owner: '0xabc', network: 'testnet' } })
@@ -38,6 +40,7 @@ describe('MyTokens', () => {
     expect(w.text()).not.toContain('0x1::tst::TST')
   })
 
+  // Drops a slow result for the previous account instead of showing it under the new one.
   it("drops a slow result for the previous account instead of showing it under the new one", async () => {
     const first = deferred<unknown[]>()
     listMyTokens.mockImplementationOnce(() => first.promise).mockImplementationOnce(async () => [token('bob')])
@@ -50,6 +53,7 @@ describe('MyTokens', () => {
     expect(w.text()).not.toContain('alice')
   })
 
+  // Clears the list when the wallet disconnects.
   it('clears the list when the wallet disconnects', async () => {
     listMyTokens.mockResolvedValue([token('tst')])
     const w = mount(MyTokens, { props: { owner: '0xabc', network: 'testnet' } })
@@ -59,6 +63,7 @@ describe('MyTokens', () => {
     expect(w.text()).not.toContain('0x1::tst::TST')
   })
 
+  // Shows a coin with no capability (fixed supply, frozen metadata) with both caps marked absent.
   it('shows a coin with no capability (fixed supply, frozen metadata) with both caps marked absent', async () => {
     listMyTokens.mockResolvedValue([{ coinType: '0x1::fixed::FIXED', packageId: '0x1', label: 'FIXED' }])
     const w = mount(MyTokens, { props: { owner: '0xabc', network: 'testnet' } })
@@ -68,6 +73,7 @@ describe('MyTokens', () => {
     expect(w.text()).toMatch(/Metadata cap\s*None — the metadata is frozen/)
   })
 
+  // Shows the metadata cap of a coin whose treasury cap went elsewhere.
   it('shows the metadata cap of a coin whose treasury cap went elsewhere', async () => {
     listMyTokens.mockResolvedValue([{ coinType: '0x1::m::M', packageId: '0x1', metadataCapId: '0xbeef', label: 'M' }])
     const w = mount(MyTokens, { props: { owner: '0xabc', network: 'testnet' } })

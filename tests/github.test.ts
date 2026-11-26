@@ -1,11 +1,15 @@
+// The GitHub helper (src/lib/github.ts): base64 of UTF-8 text, the sequence of calls that creates a repository and pushes each file, HTTPS only, no redirects,
+// and bounded, time-limited replies (audit F34).
 import { describe, it, expect, vi } from 'vitest'
 import { createRepoAndPush, toBase64Utf8 } from '../src/lib/github.js'
 
+/** A JSON response with the given status (a failing call reports 500 unless a status is given). */
 function jsonRes(body: unknown, ok = true, status = 200): Response {
   return new Response(JSON.stringify(body), { status: ok ? status : status === 200 ? 500 : status })
 }
 
 describe('toBase64Utf8', () => {
+  // Encodes UTF-8 correctly.
   it('encodes UTF-8 correctly', () => {
     expect(toBase64Utf8('hello')).toBe('aGVsbG8=')
     // round-trips multibyte
@@ -14,6 +18,7 @@ describe('toBase64Utf8', () => {
 })
 
 describe('createRepoAndPush', () => {
+  // Creates the repo then PUTs each file, reporting progress.
   it('creates the repo then PUTs each file, reporting progress', async () => {
     const fetcher = vi.fn<(url: string, _init?: RequestInit) => Promise<Response>>(async (url: string, _init?: RequestInit): Promise<Response> => {
       if (url.endsWith('/user/repos')) {
@@ -41,6 +46,7 @@ describe('createRepoAndPush', () => {
     expect(progress).toEqual([1, 2])
   })
 
+  // Surfaces the GitHub error message on repo-create failure.
   it('surfaces the GitHub error message on repo-create failure', async () => {
     const fetcher = vi.fn<() => Promise<Response>>(async (): Promise<Response> => jsonRes({ message: 'name already exists on this account' }, false, 422)) as unknown as typeof fetch
     await expect(
@@ -48,6 +54,7 @@ describe('createRepoAndPush', () => {
     ).rejects.toThrow(/already exists/)
   })
 
+  // Never lets the token follow a redirect, carry cookies or be cached.
   it('never lets the token follow a redirect, carry cookies or be cached', async () => {
     const fetcher = vi.fn<(url: string) => Promise<Response>>(async (url: string): Promise<Response> =>
       url.endsWith('/user/repos')
@@ -64,6 +71,7 @@ describe('createRepoAndPush', () => {
     }
   })
 
+  // Refuses a non-https API base before sending anything.
   it('refuses a non-https API base before sending anything', async () => {
     const fetcher = vi.fn() as unknown as typeof fetch
     await expect(
@@ -72,6 +80,7 @@ describe('createRepoAndPush', () => {
     expect(fetcher).not.toHaveBeenCalled()
   })
 
+  // Sends the token as a Bearer header.
   it('sends the token as a Bearer header', async () => {
     const fetcher = vi.fn<(url: string) => Promise<Response>>(async (url: string): Promise<Response> =>
       url.endsWith('/user/repos')
@@ -97,6 +106,7 @@ describe('bounded GitHub calls (audit F34)', () => {
     ) as unknown as typeof fetch
   }
 
+  // Gives every request a timeout signal.
   it('gives every request a timeout signal', async () => {
     const fetcher = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(async (url: string): Promise<Response> =>
       url.endsWith('/user/repos') ? repoReply() : jsonRes({}, true, 201),
@@ -107,6 +117,7 @@ describe('bounded GitHub calls (audit F34)', () => {
     for (const [, init] of calls) expect(init.signal).toBeInstanceOf(AbortSignal)
   })
 
+  // Fails with a clear message when the repository request times out (30s).
   it('fails with a clear message when the repository request times out (30s)', async () => {
     const ctl = new AbortController()
     const timeout = vi.spyOn(AbortSignal, 'timeout').mockReturnValue(ctl.signal)

@@ -1,3 +1,4 @@
+// walrus-storage-kit 0.1.31: the gate must be the published deployment, and the price is read from the chain.
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { readdirSync, readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
@@ -5,7 +6,6 @@ import { join } from 'node:path'
 import { PUBLIC_WALRUS_RELAY_HOSTS, useAccessGate, type GateClient } from '@meddleware/walrus-storage-kit'
 import { operatorRelayHost, parseAccessGate } from '../src/config.js'
 
-// walrus-storage-kit 0.1.31: the gate must be the published deployment, and the price is read from the chain.
 
 const failingClient = (): GateClient => {
   const fail = async (): Promise<never> => {
@@ -15,35 +15,41 @@ const failingClient = (): GateClient => {
 }
 
 describe('the access gate configuration', () => {
+  // Carries no purchase price (it is read from the chain).
   it('carries no purchase price (it is read from the chain)', () => {
     const gate = parseAccessGate('testnet', { VITE_ACCESS_GATE_ID_TESTNET: '0xgate' })
     expect(gate).not.toBeNull()
     expect(gate).not.toHaveProperty('priceMist')
   })
 
+  // Ignores a leftover VITE_ACCESS_GATE_PRICE_MIST_* value.
   it('ignores a leftover VITE_ACCESS_GATE_PRICE_MIST_* value', () => {
     const withPrice = parseAccessGate('testnet', { VITE_ACCESS_GATE_ID_TESTNET: '0xgate', VITE_ACCESS_GATE_PRICE_MIST_TESTNET: '5' })
     expect(withPrice).toEqual(parseAccessGate('testnet', { VITE_ACCESS_GATE_ID_TESTNET: '0xgate' }))
   })
 
+  // Is accepted by useAccessGate (published deployment) and starts with no terms.
   it('is accepted by useAccessGate (published deployment) and starts with no terms', () => {
     const gate = useAccessGate({ network: 'testnet', gate: parseAccessGate('testnet', { VITE_ACCESS_GATE_ID_TESTNET: '0xgate' }), getClient: failingClient })
     expect(gate.gateConfigured).toBe(true)
     expect(gate.terms.value).toBeNull()
   })
 
+  // Is refused by useAccessGate when it names another package.
   it('is refused by useAccessGate when it names another package', () => {
     const base = parseAccessGate('testnet', { VITE_ACCESS_GATE_ID_TESTNET: '0xgate' })!
     const forged = { ...base, packageId: '0x' + 'ab'.repeat(32) }
     expect(() => useAccessGate({ network: 'testnet', gate: forged, getClient: failingClient })).toThrow(/not the published testnet deployment/)
   })
 
+  // Stays inert and open without a gate.
   it('stays inert and open without a gate', () => {
     const gate = useAccessGate({ network: 'testnet', gate: null, getClient: failingClient })
     expect(gate.gateConfigured).toBe(false)
     expect(gate.hasAccess.value).toBe(true)
   })
 
+  // Does not open the wallet when the price cannot be read.
   it('does not open the wallet when the price cannot be read', async () => {
     const gate = useAccessGate({ network: 'testnet', gate: parseAccessGate('testnet', { VITE_ACCESS_GATE_ID_TESTNET: '0xgate' }), getClient: failingClient })
     const executor = { signAndExecute: vi.fn(), waitForTransaction: vi.fn() }
@@ -81,6 +87,7 @@ const tokenCss = readFileSync(require.resolve('@meddleware/design-tokens/tokens.
 const seasonCss = readFileSync(require.resolve('@meddleware/design-tokens/seasons.css'), 'utf8')
 const defined = new Set([...(tokenCss + seasonCss).matchAll(/^\s*(--[\w-]+)\s*:/gm)].map((m) => m[1]))
 
+/** The .vue files under a directory, recursively. */
 function vueFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
     e.isDirectory() ? vueFiles(join(dir, e.name)) : e.name.endsWith('.vue') ? [join(dir, e.name)] : [],

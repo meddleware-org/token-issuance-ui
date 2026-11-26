@@ -1,16 +1,21 @@
+// TypeScript configuration for the app. It is self-contained (it does not extend the fleet's Vue application base): strict mode, bundler module
+// resolution and DOM types, over the app's sources, its tests and the ambient declarations. `npm run type-check` (vue-tsc) reads it; Vite does not type-check.
 {
   "compilerOptions": {
     "target": "esnext",
     "lib": ["esnext", "DOM", "DOM.Iterable"],
     "module": "esnext",
+    // Resolve imports the way Vite and the bundler do.
     "moduleResolution": "Bundler",
     "resolveJsonModule": true,
+    // Each file must compile on its own (what esbuild does), so type-only imports must be marked.
     "isolatedModules": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
     "skipLibCheck": true,
+    // Vite emits the code; TypeScript only checks it.
     "noEmit": true,
     "jsx": "preserve",
     "types": ["node", "vite/client"]

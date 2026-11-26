@@ -13,6 +13,7 @@ import { buildDeployExecutor } from '../src/lib/deployExecutor.js'
 import { RPC_URLS } from '../src/config.js'
 
 describe('buildDeployExecutor', () => {
+  // Executes through the app client with effects + object types and maps the publish result.
   it('executes through the app client with effects + object types and maps the publish result', async () => {
     const packageId = '0x' + 'bb'.repeat(32)
     const capId = '0x' + 'cc'.repeat(32)
@@ -31,6 +32,7 @@ describe('buildDeployExecutor', () => {
     }
     buildExecutor.mockResolvedValue(inner)
 
+    // Build the executor for the test network: it must ask wallet-adapter to use this app's own read client.
     const exec = await buildDeployExecutor('testnet')
     expect(buildExecutor).toHaveBeenCalledWith('testnet', RPC_URLS.testnet, { client: readClient })
     const out = await exec.signAndExecute({} as never)
@@ -41,6 +43,7 @@ describe('buildDeployExecutor', () => {
     expect(inner.waitForTransaction).toHaveBeenCalledWith('D1')
   })
 
+  // Surfaces the wallet-adapter guards (no wallet, wrong chain).
   it('surfaces the wallet-adapter guards (no wallet, wrong chain)', async () => {
     buildExecutor.mockRejectedValue(new Error('The connected wallet account does not support sui:mainnet'))
     await expect(buildDeployExecutor('mainnet')).rejects.toThrow(/does not support sui:mainnet/)

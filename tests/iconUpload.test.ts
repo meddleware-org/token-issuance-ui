@@ -1,25 +1,29 @@
+// The upload itself is @meddleware/walrus-storage-client/flow and the relay gate @meddleware/walrus-storage-kit
+// (tested there). These cover what this app adds: the icon checks and its gate configuration.
 import { describe, it, expect } from 'vitest'
 import { accessGateDeployment } from '@meddleware/access-gate-client/deployments'
 import { FEE_MIST, ICON_MAX_BYTES, WALRUS_MAX_TIP_MIST, parseAccessGate, validateIconFile } from '../src/config.js'
 
-// The upload itself is @meddleware/walrus-storage-client/flow and the relay gate @meddleware/walrus-storage-kit
-// (tested there). These cover what this app adds: the icon checks and its gate configuration.
 
 describe('validateIconFile (UX/cost gate — not a security control)', () => {
+  // Accepts an in-spec PNG.
   it('accepts an in-spec PNG', () => {
     expect(validateIconFile({ type: 'image/png', size: 10 * 1024 })).toBeNull()
   })
 
+  // Rejects a disallowed MIME type.
   it('rejects a disallowed MIME type', () => {
     const msg = validateIconFile({ type: 'application/pdf', size: 1024 })
     expect(msg).toMatch(/Unsupported image type/)
     expect(msg).toContain('pdf')
   })
 
+  // Rejects a file over the size cap.
   it('rejects a file over the size cap', () => {
     expect(validateIconFile({ type: 'image/png', size: ICON_MAX_BYTES + 1 })).toMatch(/too large/)
   })
 
+  // Accepts a file exactly at the cap.
   it('accepts a file exactly at the cap', () => {
     expect(validateIconFile({ type: 'image/webp', size: ICON_MAX_BYTES })).toBeNull()
   })

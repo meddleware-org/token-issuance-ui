@@ -35,6 +35,7 @@ const NAMED_ONLY_HOSTS = [
 const hostsIn = (text: string): string[] => [...text.matchAll(/https?:\/\/([A-Za-z0-9][A-Za-z0-9.-]*[A-Za-z0-9])/g)].map((m) => m[1]!.toLowerCase())
 const allowed = (host: string): boolean => [...REQUEST_HOSTS, ...NAMED_ONLY_HOSTS].some((re) => re.test(host))
 
+/** Every file under a directory, recursively. */
 function filesOf(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? filesOf(join(dir, e.name)) : [join(dir, e.name)]))
 }

@@ -1,3 +1,4 @@
+// The deploy flow (src/composables/useDeploy.ts): every failure after the publish executed is routed so that a second publish is never offered.
 import { describe, it, expect, vi } from 'vitest'
 import type { Executor } from '@meddleware/token-issuance-client/deploy'
 import type { TokenConfig } from '@meddleware/token-issuance-client'
@@ -27,13 +28,16 @@ const published = {
 }
 const ok = { digest: 'FINDIGEST', objectChanges: [], effects: { status: { status: 'success' } } }
 
+/** The signing function of an executor. */
 type Sign = Executor['signAndExecute']
+/** An executor whose signing and waiting the test supplies. */
 function executor(sign: Sign, wait: Executor['waitForTransaction'] = vi.fn(async () => {})): Executor {
   return { signAndExecute: sign, waitForTransaction: wait }
 }
 const args = { config, network: 'testnet' as const, sender, feeMist: 0n, feeTreasury: treasury, gasBudget: 1n }
 
 describe('useDeploy', () => {
+  // A refused second signature leaves the coin incomplete, and finish() completes it.
   it('a refused second signature leaves the coin incomplete, and finish() completes it', async () => {
     const first = executor(vi.fn<Sign>().mockResolvedValueOnce(published).mockRejectedValueOnce(new Error('User rejected')))
     const retry = executor(vi.fn<Sign>().mockResolvedValue(ok))
@@ -53,6 +57,7 @@ describe('useDeploy', () => {
     expect(executorFor).toHaveBeenLastCalledWith('testnet') // the network the coin was published to
   })
 
+  // Stays incomplete when finishing fails again.
   it('stays incomplete when finishing fails again', async () => {
     const executorFor = vi
       .fn()
@@ -65,6 +70,7 @@ describe('useDeploy', () => {
     expect(flow.pending.value).not.toBeNull()
   })
 
+  // A failure before publishing returns to a fresh deploy.
   it('a failure before publishing returns to a fresh deploy', async () => {
     const flow = useDeploy(vi.fn().mockResolvedValue(executor(vi.fn<Sign>().mockRejectedValue(new Error('User rejected')))))
     await flow.deploy(args)
@@ -72,6 +78,7 @@ describe('useDeploy', () => {
     expect(flow.pending.value).toBeNull()
   })
 
+  // Unreadable publish effects never offer a deploy or retry.
   it('unreadable publish effects never offer a deploy or retry', async () => {
     const sign = vi.fn<Sign>().mockResolvedValue({ digest: 'PUBDIGEST', objectChanges: [], effects: { status: { status: 'success' } } })
     const flow = useDeploy(vi.fn().mockResolvedValue(executor(sign)))
@@ -80,6 +87,7 @@ describe('useDeploy', () => {
     expect(flow.publishDigest.value).toBe('PUBDIGEST')
   })
 
+  // An executed but unconfirmed setup counts as done, with the warning kept.
   it('an executed but unconfirmed setup counts as done, with the warning kept', async () => {
     const wait = vi.fn<Executor['waitForTransaction']>().mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('timeout'))
     const flow = useDeploy(vi.fn().mockResolvedValue(executor(vi.fn<Sign>().mockResolvedValueOnce(published).mockResolvedValueOnce(ok), wait)))

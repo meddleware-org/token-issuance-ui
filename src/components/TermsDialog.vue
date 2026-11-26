@@ -2,14 +2,17 @@
 // Pre-deploy terms, in the shared UiDialog. Closing by any route (Cancel, Escape, backdrop,
 // close button) counts as cancel; only the "continue" action accepts — UiDialog's return value
 // tells them apart.
+// The shared button and dialog.
 import { UiButton, UiDialog } from '@meddleware/ui'
 
+// The dialog's open state is the parent's; the two events say what the person chose.
 defineProps<{ open: boolean }>()
 const emit = defineEmits<{
   (e: 'accept'): void
   (e: 'cancel'): void
 }>()
 
+/** onClose(returnValue): only "accept" accepts; every other way of closing counts as cancel. */
 function onClose(returnValue: string): void {
   if (returnValue === 'accept') emit('accept')
   else emit('cancel')
@@ -19,6 +22,7 @@ function onClose(returnValue: string): void {
 <template>
   <UiDialog :open="open" title="Before you deploy" @close="onClose">
     <!-- A list: each item is a discrete, parallel term (announced with an item count). -->
+    <!-- The terms. -->
     <ul class="terms">
       <li>
         Your coin's code is prepared, and its transactions are built and signed, <strong>in your browser</strong> with your wallet. No code is
@@ -42,25 +46,33 @@ function onClose(returnValue: string): void {
         Meddleware accepts no liability for financial loss, legal consequences, or any harm arising from your use of this tool.
       </li>
     </ul>
+    <!-- The confirmation sentence. -->
     <p class="terms__confirm">
       By continuing, you confirm that you have read and accept these terms.
     </p>
+    <!-- Two buttons: accept and cancel. -->
+    <!-- The dialog's actions. -->
     <template #actions="{ close }">
+      <!-- Accepting continues to the review. -->
       <UiButton variant="primary" @click="close('accept')">I understand — continue</UiButton>
+      <!-- Cancelling returns to the form. -->
       <UiButton variant="secondary" @click="close('cancel')">Cancel</UiButton>
     </template>
   </UiDialog>
 </template>
 
 <style scoped>
+/* The terms are an indented list with relaxed line spacing. */
 .terms {
   margin: 0;
   padding-inline-start: var(--space-sm);
   line-height: var(--leading-relaxed);
 }
+/* Space between terms. */
 .terms li + li {
   margin-top: var(--space-2xs);
 }
+/* The confirmation is muted, smaller text. */
 .terms__confirm {
   margin: var(--space-xs) 0 0;
   color: var(--muted);

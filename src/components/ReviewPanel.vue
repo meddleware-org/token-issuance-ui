@@ -1,5 +1,6 @@
 <script setup lang="ts">
 // The last look before deploying: what becomes permanent, what the policies allow, what is configured and what it costs.
+// Vue, the shared UI components, the amount formatter and this app's configuration and policy text.
 import { computed } from 'vue'
 import { UiButton, UiCard, UiNotice, UiStatGrid, UiStatRow } from '@meddleware/ui'
 import { mistToSui } from '@meddleware/web-utils'
@@ -15,7 +16,9 @@ const props = withDefaults(
 defineEmits<{ (e: 'back'): void; (e: 'confirm'): void }>()
 
 // Mirrors TokenIssuanceView: the fee is only charged when a real treasury is configured.
+// Whether the fee applies: only when a real treasury is configured (mirrors the wizard's own rule).
 const feeCharged = computed(() => props.feeTreasury !== ZERO_ADDR && props.feeMist > 0n)
+// What cannot change, what can still change, and the policy statements.
 const permanent = computed(() => permanentItems(props.config))
 const changeable = computed(() => changeableItems(props.config))
 const statements = computed(() => policyStatements(props.config))
@@ -23,6 +26,7 @@ const statements = computed(() => policyStatements(props.config))
 
 <template>
   <UiCard :level="2" :title="`Review — deploying to ${network}`">
+    <!-- What is permanent once published, whatever the policies say. -->
     <UiNotice>
       <strong>Permanent once published</strong>, whatever you choose below:
       <template v-for="(item, i) in permanent" :key="item.term"
@@ -33,13 +37,20 @@ const statements = computed(() => policyStatements(props.config))
       The {{ changeable.join(', ') }} can still be changed later by whoever holds the MetadataCap.
     </p>
 
+    <!-- The choices in summary. -->
     <UiStatGrid>
+      <!-- The Initial supply row. -->
+      <!-- The supply, the three policy choices, the source licence and the recipient. -->
       <UiStatRow label="Initial supply" align="left">{{ config.initialSupply.toString() }}</UiStatRow>
+      <!-- The s.label row. -->
       <UiStatRow v-for="s in statements" :key="s.id" :label="s.label" align="left">{{ s.choice }}</UiStatRow>
+      <!-- The License (source only) row. -->
       <UiStatRow label="License (source only)" align="left">{{ config.license }}</UiStatRow>
+      <!-- The Recipient row. -->
       <UiStatRow label="Recipient" align="left">{{ config.recipient || 'your wallet' }}</UiStatRow>
     </UiStatGrid>
 
+    <!-- What each choice means. -->
     <h3>What your choices mean</h3>
     <ul class="policies">
       <li v-for="s in statements" :key="s.id">
@@ -47,6 +58,7 @@ const statements = computed(() => policyStatements(props.config))
       </li>
     </ul>
 
+    <!-- The cost: gas for two transactions, and the platform fee where one is charged (it is not refundable). -->
     <h3>Cost</h3>
     <p>
       Your wallet signs and pays network gas for the publish transaction (up to {{ mistToSui(gasBudget) }} SUI is set aside for it; only the
@@ -64,14 +76,18 @@ const statements = computed(() => policyStatements(props.config))
       tokens or their creators, and takes no custody of your token or caps.
     </p>
 
+    <!-- Back to the form, or confirm and deploy. -->
     <p class="actions">
+      <!-- Back to the form. -->
       <UiButton variant="ghost" @click="$emit('back')">Back</UiButton>
+      <!-- Confirm and deploy: the wallet opens next. -->
       <UiButton variant="primary" @click="$emit('confirm')">Confirm &amp; deploy</UiButton>
     </p>
   </UiCard>
 </template>
 
 <style scoped>
+/* The statements are an indented list. */
 .policies {
   margin: 0;
   padding-inline-start: var(--space-sm);
@@ -81,6 +97,7 @@ const statements = computed(() => policyStatements(props.config))
   flex-wrap: wrap;
   gap: var(--space-xs);
 }
+/* Long addresses wrap instead of overflowing. */
 code {
   overflow-wrap: anywhere;
 }

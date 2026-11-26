@@ -48,6 +48,7 @@ const FEE_ADDR = process.env.E2E_FEE_ADDR || (NETWORK === 'localnet' ? '0xfee' +
 const EXPECT_FEE_MIST = BigInt(process.env.E2E_FEE_MIST || '2000000000') // 2 SUI, matches VITE_FEE_MIST default
 const RESULT_TIMEOUT = Number(process.env.E2E_RESULT_TIMEOUT || '60000')
 
+/** Report the failure and stop with status 1. */
 function fail(msg) {
   console.error('E2E FAIL:', msg)
   process.exit(1)
@@ -96,6 +97,7 @@ async function suiBalance(owner) {
 
 const EXPECT_FEE = Boolean(FEE_ADDR) && FEE_ADDR !== ZERO_ADDR
 
+/** Drive the app through a real deploy and verify the coin type and the operator fee on-chain. */
 async function main() {
   console.log(`e2e-deploy: E2E_NETWORK=${NETWORK} APP_NETWORK=${APP_NETWORK} RPC=${RPC}`)
 

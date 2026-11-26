@@ -1,26 +1,34 @@
 <script setup lang="ts">
 // The licence of the downloadable source package: chosen from the SPDX list (popular ones first), with the licence text on demand.
+// Vue, the shared UI components, the helpers and the vendored licence list.
 import { computed, onMounted, ref } from 'vue'
 import { UiButton, UiCodeBlock, UiDialog, UiFieldHint, UiFormField, UiLiveStatus, UiNotice, UiSelect } from '@meddleware/ui'
 import { errorMessage, safeHref } from '@meddleware/web-utils'
 import { getLicenseText, loadLicenseCatalogue, NO_LICENSE, type SpdxLicense } from '../lib/licenses.js'
 
+// The chosen licence id, and an event with its human name.
 const model = defineModel<string>({ required: true })
 const emit = defineEmits<{ (e: 'name', name: string): void }>()
 
+// The popular licences, all licences, the load state and the last error.
 const popular = ref<SpdxLicense[]>([])
 const all = ref<SpdxLicense[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
 
+// The licences for the "All" group (the "none" choice is listed first, separately).
+// The "All" group leaves out "none", which is listed first.
 const allExceptNone = computed(() => all.value.filter((x) => x.id !== NO_LICENSE.id))
+// The licence's name, for the dialog title.
 const currentLicenseName = computed(() => all.value.find((l) => l.id === model.value)?.name ?? model.value)
 
+/** announceName(id): tell the parent the licence's name (it goes into the package files). */
 function announceName(id: string): void {
   const found = all.value.find((l) => l.id === id) ?? (id === NO_LICENSE.id ? NO_LICENSE : undefined)
   emit('name', found?.name ?? id)
 }
 
+// Changing the select updates the id and announces the name.
 const selectModel = computed({
   get: () => model.value,
   set: (id: string) => {
@@ -29,6 +37,8 @@ const selectModel = computed({
   },
 })
 
+// Load the vendored licence list once; the chunk is fetched on first show.
+// Load the vendored licence list once.
 onMounted(async () => {
   try {
     const catalogue = await loadLicenseCatalogue()
@@ -43,11 +53,15 @@ onMounted(async () => {
 })
 
 // The licence text, in a dialog.
+// The licence text dialog: open state, the text, and its load state.
+// The licence text dialog: open state and the text with its load state.
 const open = ref(false)
 const text = ref<string | null>(null)
 const textLoading = ref(false)
 const textError = ref<string | null>(null)
 
+/** show(): load the text (none for "no licence") and open the dialog. */
+/** show(): load the text and open the dialog. */
 async function show(): Promise<void> {
   textError.value = null
   if (model.value !== NO_LICENSE.id) {
@@ -75,6 +89,7 @@ async function show(): Promise<void> {
     </template>
     <template #default="{ attrs }">
       <span class="row">
+        <!-- The select: "none", then the popular licences, then the rest. -->
         <UiSelect
           :id="attrs.id"
           v-model="selectModel"
@@ -83,21 +98,30 @@ async function show(): Promise<void> {
           :aria-describedby="[attrs['aria-describedby'], 'license-load-status'].filter(Boolean).join(' ')"
         >
           <option :value="NO_LICENSE.id" :title="NO_LICENSE.name">{{ NO_LICENSE.id }}</option>
+          <!-- The popular licences first. -->
           <optgroup v-if="popular.length" label="Popular">
             <option v-for="l in popular" :key="'p-' + l.id" :value="l.id" :title="`${l.id} — ${l.name}`">{{ l.id }}</option>
           </optgroup>
+          <!-- Then all of them. -->
           <optgroup v-if="all.length" label="All licenses">
             <option v-for="l in allExceptNone" :key="l.id" :value="l.id" :title="`${l.id} — ${l.name}`">{{ l.id }}</option>
           </optgroup>
         </UiSelect>
+        <!-- Open the licence text. -->
         <UiButton variant="secondary" :disabled="loading" @click="show">View</UiButton>
       </span>
     </template>
   </UiFormField>
+  <!-- The Licenses live status. -->
+  <!-- The load is announced politely, and the select refers to it. -->
   <UiLiveStatus id="license-load-status" label="Licenses" :message="loading ? 'Loading licenses…' : ''" />
+  <!-- A failed list load is shown, and the select is disabled. -->
+  <!-- A failed list load is shown. -->
   <UiNotice v-if="error" type="error" :message="`Couldn't load the license list: ${error}`" />
 
+  <!-- The licence text in a dialog, with a link to the SPDX page (the address is made safe and opens in a new tab). -->
   <UiDialog v-model:open="open" :title="currentLicenseName" width="min(680px, 92vw)">
+    <!-- The License text live status. -->
     <UiLiveStatus label="License text" :message="textLoading ? 'Loading…' : ''" />
     <UiNotice v-if="textError" type="error" :message="textError" />
     <p v-else-if="model === NO_LICENSE.id">No LICENSE file will be generated. All rights are reserved by the author.</p>
@@ -105,6 +129,7 @@ async function show(): Promise<void> {
       <p>
         <a :href="safeHref(`https://spdx.org/licenses/${encodeURIComponent(model)}.html`)" target="_blank" rel="noopener noreferrer">View on SPDX ↗</a>
       </p>
+      <!-- The License text code block. -->
       <UiCodeBlock :code="text ?? ''" label="License text" wrap />
     </template>
     <template #actions="{ close }">
@@ -114,11 +139,13 @@ async function show(): Promise<void> {
 </template>
 
 <style scoped>
+/* The select and its button on one row. */
 .row {
   display: flex;
   gap: var(--space-2xs);
   align-items: center;
 }
+/* The select takes the spare width. */
 .row :deep(.mw-select) {
   flex: 1;
 }

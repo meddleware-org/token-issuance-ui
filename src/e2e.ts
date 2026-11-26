@@ -5,12 +5,16 @@
 import { createStubClient, installE2eWallet } from '@meddleware/wallet-adapter/testing'
 import { E2E_PACKAGE_ID, E2E_PUBLISH_DIGEST } from './e2e-data.js'
 
+/** Register the mock wallet with a stub chain whose publish succeeds and whose effects carry a TreasuryCap, a MetadataCap and a Currency. */
 export function installE2e(): void {
+  // id(byte): a 32-byte object id made of one repeated byte.
   const id = (byte: string) => `0x${byte.repeat(32)}`
   const treasuryCapId = id('cc')
   const metadataCapId = id('dd')
   const currencyId = id('ee')
+  // created(id): the effects entry for an object the transaction created.
   const created = (objectId: string) => ({ objectId, outputState: 'ObjectWrite', idOperation: 'Created', outputVersion: '1', outputDigest: E2E_PUBLISH_DIGEST })
+  // The stub's answer to the publish transaction: success, the changed objects and their types.
   const executed = {
     $kind: 'Transaction',
     Transaction: {

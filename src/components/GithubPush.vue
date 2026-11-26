@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // Optional, zero-backend GitHub repo creation with the user's own token: held for one operation, cleared whether it succeeds or fails, and
 // never written to browser storage.
+// Vue, the shared UI components, the helpers, the package builder and this app's GitHub helper.
 import { ref } from 'vue'
 import { UiButton, UiCheckField, UiLiveStatus, UiNotice, UiTextField } from '@meddleware/ui'
 import { errorMessage, safeHref } from '@meddleware/web-utils'
@@ -9,8 +10,10 @@ import type { PublishResult, TokenConfig } from '@meddleware/token-issuance-clie
 import { createRepoAndPush } from '../lib/github.js'
 import { getLicenseText } from '../lib/licenses.js'
 
+// The component's inputs.
 const props = defineProps<{ config: TokenConfig; result: PublishResult }>()
 
+// The form: the person's own token (held only for one operation), the repository name, privacy, progress and result.
 const token = ref('')
 const repoName = ref(props.config.packageName)
 const isPrivate = ref(false)
@@ -19,13 +22,16 @@ const error = ref<string | null>(null)
 const doneUrl = ref<string | null>(null)
 const progress = ref('')
 
+/** push(): build the package files, create the repository in the person's account and push each file; the token goes only to the GitHub API over HTTPS. */
 async function push(): Promise<void> {
   busy.value = true
   error.value = null
   doneUrl.value = null
   try {
     const licenseText = await getLicenseText(props.config.license)
+    // The same files as the zip download.
     const files = buildPackageFiles({ config: props.config, licenseText: licenseText ?? undefined, result: props.result })
+    // Create the repository and push every file (one commit each).
     const res = await createRepoAndPush({
       token: token.value.trim(),
       repoName: repoName.value.trim(),
@@ -55,14 +61,21 @@ async function push(): Promise<void> {
       is sent only to <code>api.github.com</code> over HTTPS, is never stored or logged, and is cleared as soon as the push finishes. Use a
       fine-grained token with "Contents" and "Administration" write access, or a classic token with the <code>repo</code> scope.
     </p>
+    <!-- The Repository name field. -->
+    <!-- The repository name; it starts as the package name. -->
     <UiTextField id="gh-repo" v-model="repoName" label="Repository name" />
+    <!-- A password field with autocomplete off, so the browser does not offer to save the token. -->
     <UiTextField id="gh-token" v-model="token" type="password" label="GitHub token" placeholder="github_pat_… or ghp_…" autocomplete="new-password" spellcheck="false" />
+    <!-- The Make the repository private checkbox. -->
+    <!-- Public by default. -->
     <UiCheckField v-model="isPrivate" label="Make the repository private" />
     <p>
       <UiButton variant="primary" :busy="busy" :disabled="!token || !repoName" @click="push">Create repo &amp; push</UiButton>
     </p>
+    <!-- The Push progress live status. -->
     <UiLiveStatus label="Push progress" :message="progress" />
     <UiNotice v-if="error" type="error" :message="error" />
+    <!-- The repository's address, made safe before it is linked. -->
     <UiNotice v-if="doneUrl" type="ok">Pushed: <a :href="safeHref(doneUrl)" target="_blank" rel="noopener noreferrer">{{ doneUrl }}</a></UiNotice>
   </details>
 </template>

@@ -1,3 +1,4 @@
+// The policy statements (src/lib/policies.ts): each choice is described exactly as the chain behaves, and the wizard shows those statements.
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import type { MetadataPolicy, PackagePolicy, PublishResult, SupplyPolicy, TokenConfig } from '@meddleware/token-issuance-client'
@@ -44,6 +45,7 @@ const config = (supplyPolicy: SupplyPolicy, metadataPolicy: MetadataPolicy, pack
 const COMBOS = SUPPLY.flatMap((s) => METADATA.flatMap((m) => PACKAGE.map((p) => [s, m, p] as const)))
 
 describe('what the chain allows (src/lib/policies.ts)', () => {
+  // Makes the symbol and decimals permanent and nothing else, whatever the policies.
   it('makes the symbol and decimals permanent and nothing else, whatever the policies', () => {
     expect(ALWAYS_PERMANENT).toEqual(['symbol', 'decimals'])
     // The framework's setters gated by the MetadataCap: set_name, set_description, set_icon_url (none exists for the symbol or decimals).
@@ -51,17 +53,20 @@ describe('what the chain allows (src/lib/policies.ts)', () => {
     for (const field of ALWAYS_PERMANENT) expect(CHANGEABLE_WITH_METADATA_CAP).not.toContain(field)
   })
 
+  // Lists what can still change exactly when the metadata is updatable.
   it('lists what can still change exactly when the metadata is updatable', () => {
     expect(changeableItems({ metadataPolicy: 'updatable' })).toEqual(['name', 'description', 'icon'])
     expect(changeableItems({ metadataPolicy: 'frozen' })).toEqual([])
   })
 
+  // Adds the name to the permanent facts exactly when the metadata is frozen.
   it('adds the name to the permanent facts exactly when the metadata is frozen', () => {
     const terms = (m: MetadataPolicy) => permanentItems(config('mintable', m, 'immutable')).map((i) => i.term)
     expect(terms('updatable')).toEqual(['Symbol', 'Decimals', 'Coin type'])
     expect(terms('frozen')).toEqual(['Symbol', 'Name', 'Decimals', 'Coin type'])
   })
 
+  // Names the capability each policy keeps, hands over or gives up.
   it('names the capability each policy keeps, hands over or gives up', () => {
     expect(SUPPLY_TEXT.mintable).toMatch(/TreasuryCap goes to the recipient/)
     expect(SUPPLY_TEXT.fixed).toMatch(/registry takes the TreasuryCap/)
@@ -75,12 +80,14 @@ describe('what the chain allows (src/lib/policies.ts)', () => {
     expect(PACKAGE_TEXT.upgradeable).toMatch(/UpgradeCap goes to the recipient/)
   })
 
+  // Says the symbol and decimals can never change wherever it mentions them, and the name is not changeable once frozen.
   it('says the symbol and decimals can never change wherever it mentions them, and the name is not changeable once frozen', () => {
     expect(METADATA_TEXT.updatable).toMatch(/symbol and decimals can never change/)
     expect(METADATA_TEXT.frozen).not.toMatch(/symbol|decimals/)
     expect(METADATA_TEXT.frozen).not.toMatch(/can (still )?change/)
   })
 
+  // For every combination of the three policies the statements come out in a fixed order and use the table text for each choice.
   it.each(COMBOS)('describes %s supply, %s metadata and %s package code from the config', (s, m, p) => {
     const statements = policyStatements(config(s, m, p))
     expect(statements.map((x) => x.id)).toEqual(['supply', 'metadata', 'package'])
@@ -89,6 +96,7 @@ describe('what the chain allows (src/lib/policies.ts)', () => {
 })
 
 describe('the wizard shows those statements', () => {
+  // The review page prints the text for the chosen policies and none for the others, and the permanent block follows the metadata policy.
   it.each(COMBOS)('the review for %s / %s / %s shows its own statements and none of the others', (s, m, p) => {
     const text = mount(ReviewPanel, { props: { config: config(s, m, p), network: 'testnet', feeMist: 0n, feeTreasury: '0x' + '0'.repeat(64) } }).text()
     const squash = (t: string): string => t.replace(/\s+/g, ' ')
@@ -102,13 +110,14 @@ describe('the wizard shows those statements', () => {
         expect(page.includes(squash(value)), `${policy}: ${key} when ${chosen} is chosen`).toBe(key === chosen)
       }
     }
-    // The permanent block.
+    // The permanent block: the symbol is always there, the name only when the metadata is frozen.
     expect(page).toContain('Permanent once published')
     expect(page).toContain('MYT')
     expect(page.includes('can still be changed later by whoever holds the MetadataCap')).toBe(m === 'updatable')
     expect(page.includes('My Token')).toBe(m === 'frozen')
   })
 
+  // Shows the hint under each policy select for the chosen option and updates it when the choice changes.
   it('shows the hint under each policy select for the chosen option and updates it when the choice changes', async () => {
     const form = emptyForm()
     const w = mount(ConfigForm, {
@@ -127,6 +136,7 @@ describe('the wizard shows those statements', () => {
     expect(hint('package-policy')).toBe(PACKAGE_TEXT.upgradeable)
   })
 
+  // Says in the name and symbol hints what the chain allows for each.
   it('says in the name and symbol hints what the chain allows for each', () => {
     const w = mount(ConfigForm, {
       props: { form: emptyForm(), errors: {}, canProceed: true, network: 'testnet', connected: true, formStep: 'token' },
@@ -141,6 +151,7 @@ describe('the wizard shows those statements', () => {
     expect(w.get('#token-description-hint').text()).toMatch(/MetadataCap holder can change it later unless the metadata is frozen/)
   })
 
+  // The result page shows the same statements, and offers a copy button only for a capability that exists for that combination.
   it.each(COMBOS)('the result for %s / %s / %s shows its own statements and the caps that exist', (s, m, p) => {
     const result: PublishResult = {
       packageId: '0x' + 'a'.repeat(64),
@@ -151,6 +162,7 @@ describe('the wizard shows those statements', () => {
       metadataCapId: m === 'updatable' ? '0x' + 'c'.repeat(64) : undefined,
       upgradeCapId: p === 'upgradeable' ? '0x' + 'd'.repeat(64) : undefined,
     } as PublishResult
+    // The panel is mounted without the GitHub push section, which has its own tests.
     const w = mount(ResultPanel, { props: { result, config: config(s, m, p) }, global: { stubs: { GithubPush: true } } })
     const text = w.text().replace(/\s+/g, ' ')
     const html = w.html()

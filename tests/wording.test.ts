@@ -1,9 +1,9 @@
+// The words on the page follow the reader (D117): no "operator", no build variable or script name, the one spelling of the company name,
+// no placeholder, no joke in the terms, and semantic emphasis (<strong>, <code>, <dfn>) rather than <b>, with no <br> for layout.
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-// The words on the page follow the reader (D117): no "operator", no build variable or script name, the one spelling of the company name,
-// no placeholder, no joke in the terms, and semantic emphasis (<strong>, <code>, <dfn>) rather than <b>, with no <br> for layout.
 const SRC = join(__dirname, '..', 'src')
 const files = [join(SRC, 'App.vue'), ...readdirSync(join(SRC, 'components')).filter((f) => f.endsWith('.vue')).map((f) => join(SRC, 'components', f))]
 
@@ -31,10 +31,12 @@ describe('user-visible wording', () => {
     for (const [what, pattern] of BANNED) expect(text, `${what} in ${_name}`).not.toMatch(pattern)
   })
 
+  // Has components to check.
   it('has components to check', () => {
     expect(files.length).toBeGreaterThan(8)
   })
 
+  // Keeps the index page spelling of the company name.
   it('keeps the index page spelling of the company name', () => {
     const html = readFileSync(join(__dirname, '..', 'index.html'), 'utf8')
     expect(html).not.toMatch(/MeddleWare/)

@@ -1,3 +1,4 @@
+// The form validation (src/lib/validation.ts): the derived struct name, a message per invalid field, and the icon scheme allowlist.
 import { describe, it, expect } from 'vitest'
 import { hasAllowedIconScheme, TOKEN_LIMITS } from '@meddleware/token-issuance-client'
 import { validateForm, deriveStructName, isValid } from '../src/lib/validation.js'
@@ -17,6 +18,7 @@ const good = {
 }
 
 describe('deriveStructName', () => {
+  // Uppercases the module name (Sui OTW rule).
   it('uppercases the module name (Sui OTW rule)', () => {
     expect(deriveStructName('mwsui')).toBe('MWSUI')
     expect(deriveStructName('sui_token_template')).toBe('SUI_TOKEN_TEMPLATE')
@@ -24,31 +26,37 @@ describe('deriveStructName', () => {
 })
 
 describe('validateForm', () => {
+  // Accepts a well-formed config.
   it('accepts a well-formed config', () => {
     expect(isValid(validateForm(good))).toBe(true)
   })
 
+  // Rejects invalid identifiers.
   it('rejects invalid identifiers', () => {
     expect(validateForm({ ...good, packageName: 'My-Token' }).packageName).toBeTruthy()
     expect(validateForm({ ...good, moduleName: '1coin' }).moduleName).toBeTruthy()
   })
 
+  // Rejects unsafe characters that would break the Move byte-string.
   it('rejects unsafe characters that would break the Move byte-string', () => {
     expect(validateForm({ ...good, symbol: 'A"B' }).symbol).toBeTruthy()
     expect(validateForm({ ...good, name: 'back\\slash' }).name).toBeTruthy()
   })
 
+  // Requires symbol and name.
   it('requires symbol and name', () => {
     expect(validateForm({ ...good, symbol: '' }).symbol).toBeTruthy()
     expect(validateForm({ ...good, name: '   ' }).name).toBeTruthy()
   })
 
+  // Bounds decimals to 0..18.
   it('bounds decimals to 0..18', () => {
     expect(validateForm({ ...good, decimals: 19 }).decimals).toBeTruthy()
     expect(validateForm({ ...good, decimals: -1 }).decimals).toBeTruthy()
     expect(validateForm({ ...good, decimals: 6 }).decimals).toBeUndefined()
   })
 
+  // Rejects supply that overflows u64 for the decimals.
   it('rejects supply that overflows u64 for the decimals', () => {
     expect(validateForm({ ...good, initialSupply: '99999999999999', decimals: 18 }).initialSupply).toBeTruthy()
     expect(validateForm({ ...good, initialSupply: 'abc' }).initialSupply).toBeTruthy()

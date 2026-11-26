@@ -1,9 +1,15 @@
+// Extensions the editor recommends for this repository, one per tool the project uses.
 {
   "recommendations": [
+    // Vue language support (templates, scripts and styles of single-file components).
     "Vue.volar",
+    // The Vitest test explorer.
     "vitest.explorer",
+    // ESLint, which runs the fleet's lint rules in the editor.
     "dbaeumer.vscode-eslint",
+    // Honour the .editorconfig settings.
     "EditorConfig.EditorConfig",
+    // The Oxc tooling.
     "oxc.oxc-vscode"
   ]
 }

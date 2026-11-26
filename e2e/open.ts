@@ -1,3 +1,5 @@
+// Helpers the Token Issuance browser tests share: open the built app with every request that leaves localhost refused, connect the mock wallet, and fill the
+// wizard's steps.
 import type { Page } from '@playwright/test'
 import { offline } from '@meddleware/frontend-config/look'
 import { connectMockWallet } from '@meddleware/frontend-config/wallet'
@@ -24,6 +26,7 @@ async function atTop(page: Page): Promise<void> {
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }))
 }
 
+/** Fill the identity step. */
 async function fillIdentity(page: Page): Promise<void> {
   await page.getByLabel('Package name').fill('my_token')
   await page.getByLabel('Module name').fill('mytoken')
@@ -44,6 +47,7 @@ export async function iconUpload(page: Page): Promise<void> {
   await page.getByLabel('Image to upload to Walrus').waitFor()
 }
 
+/** Fill the token step. */
 async function fillToken(page: Page): Promise<void> {
   await page.getByLabel('Token name').fill('My Token')
   await page.getByLabel('Symbol').fill('MYT')
