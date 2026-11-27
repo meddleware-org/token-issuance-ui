@@ -5,6 +5,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.0.51] - 2026-11-27
+
 - Documentation pass (workspace documentation standard): every file has a header and line-level comments, every declaration a doc comment; `CONTRIBUTING.md` is new. The files synced from `@meddleware/frontend-config` now carry that package's commented templates (`npx mw-sync --write`). The npm-publish workflow's "not configured" warning had a garbled word and now reads "npm publishing is not configured". The built bundle is unchanged apart from one header comment in `index.html`.
 
 ## [0.0.50] - 2026-11-20
